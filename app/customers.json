@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1 555-1234",
+    "status": "Active",
+    "joined": "2023-01-15"
+  },
+  {
+    "id": 2,
+    "name": "Jane Smith",
+    "email": "jane.smith@example.com",
+    "phone": "+1 555-5678",
+    "status": "Inactive",
+    "joined": "2022-11-03"
+  },
+  {
+    "id": 3,
+    "name": "Alice Johnson",
+    "email": "alice.johnson@example.com",
+    "phone": "+1 555-8765",
+    "status": "Active",
+    "joined": "2023-03-22"
+  },
+  {
+    "id": 4,
+    "name": "Bob Lee",
+    "email": "bob.lee@example.com",
+    "phone": "+1 555-4321",
+    "status": "Active",
+    "joined": "2023-06-10"
+  }
+] 

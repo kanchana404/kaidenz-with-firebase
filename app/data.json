@@ -1,0 +1,227 @@
+[
+  {
+    "id": 1,
+    "product": "Men’s Crew Neck T-Shirt",
+    "category": "Tops",
+    "stock": 34,
+    "price": 19.99,
+    "status": "Shipped",
+    "date": "2024-06-28"
+  },
+  {
+    "id": 2,
+    "product": "Women’s Crop Top",
+    "category": "Tops",
+    "stock": 12,
+    "price": 17.99,
+    "status": "Processing",
+    "date": "2024-06-28"
+  },
+  {
+    "id": 3,
+    "product": "Unisex Oversized Hoodie",
+    "category": "Tops",
+    "stock": 8,
+    "price": 39.99,
+    "status": "Delivered",
+    "date": "2024-06-27"
+  },
+  {
+    "id": 4,
+    "product": "Button-Up Casual Shirt",
+    "category": "Tops",
+    "stock": 20,
+    "price": 29.99,
+    "status": "Shipped",
+    "date": "2024-06-27"
+  },
+  {
+    "id": 5,
+    "product": "Sleeveless Tank Top",
+    "category": "Tops",
+    "stock": 15,
+    "price": 14.99,
+    "status": "Processing",
+    "date": "2024-06-26"
+  },
+  {
+    "id": 6,
+    "product": "Basic Long Sleeve Tee",
+    "category": "Tops",
+    "stock": 22,
+    "price": 21.99,
+    "status": "Delivered",
+    "date": "2024-06-26"
+  },
+  {
+    "id": 7,
+    "product": "Skinny Jeans",
+    "category": "Bottoms",
+    "stock": 10,
+    "price": 49.99,
+    "status": "Shipped",
+    "date": "2024-06-25"
+  },
+  {
+    "id": 8,
+    "product": "High-Waisted Leggings",
+    "category": "Bottoms",
+    "stock": 18,
+    "price": 24.99,
+    "status": "Delivered",
+    "date": "2024-06-25"
+  },
+  {
+    "id": 9,
+    "product": "Men’s Jogger Pants",
+    "category": "Bottoms",
+    "stock": 9,
+    "price": 34.99,
+    "status": "Processing",
+    "date": "2024-06-24"
+  },
+  {
+    "id": 10,
+    "product": "Denim Shorts",
+    "category": "Bottoms",
+    "stock": 14,
+    "price": 27.99,
+    "status": "Cancelled",
+    "date": "2024-06-24"
+  },
+  {
+    "id": 11,
+    "product": "Pleated Skirt",
+    "category": "Bottoms",
+    "stock": 7,
+    "price": 31.99,
+    "status": "Shipped",
+    "date": "2024-06-23"
+  },
+  {
+    "id": 12,
+    "product": "Cargo Pants",
+    "category": "Bottoms",
+    "stock": 11,
+    "price": 44.99,
+    "status": "Delivered",
+    "date": "2024-06-23"
+  },
+  {
+    "id": 13,
+    "product": "Lightweight Bomber Jacket",
+    "category": "Outerwear",
+    "stock": 5,
+    "price": 59.99,
+    "status": "Processing",
+    "date": "2024-06-22"
+  },
+  {
+    "id": 14,
+    "product": "Denim Jacket",
+    "category": "Outerwear",
+    "stock": 6,
+    "price": 54.99,
+    "status": "Shipped",
+    "date": "2024-06-22"
+  },
+  {
+    "id": 15,
+    "product": "Waterproof Raincoat",
+    "category": "Outerwear",
+    "stock": 4,
+    "price": 69.99,
+    "status": "Delivered",
+    "date": "2024-06-21"
+  },
+  {
+    "id": 16,
+    "product": "Wool Blend Overcoat",
+    "category": "Outerwear",
+    "stock": 3,
+    "price": 89.99,
+    "status": "Processing",
+    "date": "2024-06-21"
+  },
+  {
+    "id": 17,
+    "product": "Floral Summer Dress",
+    "category": "Dresses & Jumpsuits",
+    "stock": 13,
+    "price": 39.99,
+    "status": "Delivered",
+    "date": "2024-06-20"
+  },
+  {
+    "id": 18,
+    "product": "Bodycon Mini Dress",
+    "category": "Dresses & Jumpsuits",
+    "stock": 8,
+    "price": 36.99,
+    "status": "Shipped",
+    "date": "2024-06-20"
+  },
+  {
+    "id": 19,
+    "product": "Casual Jumpsuit",
+    "category": "Dresses & Jumpsuits",
+    "stock": 10,
+    "price": 44.99,
+    "status": "Processing",
+    "date": "2024-06-19"
+  },
+  {
+    "id": 20,
+    "product": "Yoga Set (Top + Leggings)",
+    "category": "Loungewear & Activewear",
+    "stock": 16,
+    "price": 29.99,
+    "status": "Delivered",
+    "date": "2024-06-19"
+  },
+  {
+    "id": 21,
+    "product": "Unisex Lounge Shorts",
+    "category": "Loungewear & Activewear",
+    "stock": 19,
+    "price": 18.99,
+    "status": "Shipped",
+    "date": "2024-06-18"
+  },
+  {
+    "id": 22,
+    "product": "Compression Gym Shirt",
+    "category": "Loungewear & Activewear",
+    "stock": 14,
+    "price": 22.99,
+    "status": "Processing",
+    "date": "2024-06-18"
+  },
+  {
+    "id": 23,
+    "product": "Graphic Sweatshirt",
+    "category": "Seasonal/Accessories",
+    "stock": 17,
+    "price": 27.99,
+    "status": "Delivered",
+    "date": "2024-06-17"
+  },
+  {
+    "id": 24,
+    "product": "Puffer Vest",
+    "category": "Seasonal/Accessories",
+    "stock": 6,
+    "price": 34.99,
+    "status": "Shipped",
+    "date": "2024-06-17"
+  },
+  {
+    "id": 25,
+    "product": "Knitted Beanie",
+    "category": "Seasonal/Accessories",
+    "stock": 25,
+    "price": 12.99,
+    "status": "Processing",
+    "date": "2024-06-16"
+  }
+]
