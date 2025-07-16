@@ -10,21 +10,70 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UploadButton } from "@/utils/uploadthing"
+import { toast } from "sonner"
+
+// Remove hardcoded categories and sizes arrays
+// const categories = [
+//   { id: "cat1", label: "Clothing" },
+//   { id: "cat2", label: "Electronics" },
+//   { id: "cat3", label: "Accessories" },
+//   { id: "cat4", label: "Other" },
+// ];
+// const sizes = [
+//   { id: "size_s", label: "Small" },
+//   { id: "size_m", label: "Medium" },
+//   { id: "size_l", label: "Large" },
+//   { id: "size_xl", label: "Extra Large" },
+// ];
 
 export default function ProductsPage() {
   const [search, setSearch] = React.useState("")
   const [products, setProducts] = React.useState(data)
-  const [imagePreview, setImagePreview] = React.useState<string | null>(null)
-  const [newProduct, setNewProduct] = React.useState({
-    product: "",
-    category: "",
-    stock: 0,
-    price: 0,
+  const [categories, setCategories] = React.useState<{ id: string; label: string }[]>([])
+  const [sizes, setSizes] = React.useState<{ id: string; label: string }[]>([])
+  const [newProduct, setNewProduct] = React.useState<{
+    name: string;
+    description: string;
+    price: string;
+    qty: string;
+    imageUrls: string[];
+    sizeId: string; // will store index as string
+    categoryId: string; // will store index as string
+  }>({
+    name: "",
     description: "",
-    brand: "",
-    availability: "In Stock",
-    date: new Date().toISOString().slice(0, 10),
+    price: "",
+    qty: "",
+    imageUrls: [],
+    sizeId: "",
+    categoryId: "",
   })
+  // Remove imagePreview state, we'll show all images
+
+  React.useEffect(() => {
+    // Fetch categories
+    fetch("http://localhost:8080/kaidenz/GetCategory")
+      .then(res => res.json())
+      .then((data: string[]) => {
+        setCategories(data.map((item, idx) => ({
+          id: `cat${idx + 1}`,
+          label: item
+        })))
+      })
+      .catch(() => setCategories([]))
+
+    // Fetch sizes
+    fetch("http://localhost:8080/kaidenz/GetSizes")
+      .then(res => res.json())
+      .then((data: string[]) => {
+        setSizes(data.map((item, idx) => ({
+          id: `size${idx + 1}`,
+          label: item
+        })))
+      })
+      .catch(() => setSizes([]))
+  }, [])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value)
@@ -39,48 +88,46 @@ export default function ProductsPage() {
     setNewProduct({ ...newProduct, [e.target.name]: e.target.value })
   }
 
-  const handleAvailabilityChange = (value: string) => {
-    setNewProduct({ ...newProduct, availability: value })
+  const handleSelectChange = (name: string, value: string) => {
+    setNewProduct({ ...newProduct, [name]: value })
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newProduct.product) return
-    
-    // For compatibility with existing DataTable, we'll map our product fields
-    const productToAdd = {
-      id: products.length + 1,
-      product: newProduct.product,
-      category: newProduct.category,
-      stock: Number(newProduct.stock),
-      price: Number(newProduct.price),
-      status: newProduct.availability, // Map availability to status for table compatibility
-      date: newProduct.date,
+    if (!newProduct.name) return
+
+    try {
+      const response = await fetch("/api/product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProduct.name,
+          description: newProduct.description,
+          price: newProduct.price,
+          qty: newProduct.qty,
+          imageUrls: newProduct.imageUrls,
+          category: Number(newProduct.categoryId),
+          size: Number(newProduct.sizeId),
+        }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        toast.success("Product added successfully!")
+        setNewProduct({
+          name: "",
+          description: "",
+          price: "",
+          qty: "",
+          imageUrls: [],
+          sizeId: "",
+          categoryId: "",
+        })
+      } else {
+        toast.error("Failed to add product")
+      }
+    } catch {
+      toast.error("Failed to add product")
     }
-    
-    setProducts([...products, productToAdd])
-    setNewProduct({
-      product: "",
-      category: "",
-      stock: 0,
-      price: 0,
-      description: "",
-      brand: "",
-      availability: "In Stock",
-      date: new Date().toISOString().slice(0, 10),
-    })
-    setImagePreview(null)
   }
 
   return (
@@ -97,7 +144,7 @@ export default function ProductsPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <h1 className="text-2xl font-bold px-4 lg:px-6">Products</h1>
-              
+
               {/* Search Bar */}
               <div className="px-4 lg:px-6">
                 <Input
@@ -118,51 +165,16 @@ export default function ProductsPage() {
                     <form onSubmit={handleAddProduct} className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="product">Product Name</Label>
+                          <Label htmlFor="name">Product Name</Label>
                           <Input
-                            id="product"
-                            name="product"
+                            id="name"
+                            name="name"
                             placeholder="Enter product name"
-                            value={newProduct.product}
+                            value={newProduct.name}
                             onChange={handleInputChange}
                             required
                           />
                         </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="brand">Brand</Label>
-                          <Input
-                            id="brand"
-                            name="brand"
-                            placeholder="Enter brand name"
-                            value={newProduct.brand}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="category">Category</Label>
-                          <Input
-                            id="category"
-                            name="category"
-                            placeholder="Enter category"
-                            value={newProduct.category}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="stock">Stock Quantity</Label>
-                          <Input
-                            id="stock"
-                            name="stock"
-                            type="number"
-                            placeholder="Enter stock quantity"
-                            value={newProduct.stock}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                        
                         <div className="space-y-2">
                           <Label htmlFor="price">Price ($)</Label>
                           <Input
@@ -173,36 +185,68 @@ export default function ProductsPage() {
                             placeholder="Enter price"
                             value={newProduct.price}
                             onChange={handleInputChange}
+                            required
                           />
                         </div>
-                        
                         <div className="space-y-2">
-                          <Label htmlFor="availability">Availability</Label>
-                          <Select value={newProduct.availability} onValueChange={handleAvailabilityChange}>
+                          <Label htmlFor="qty">Quantity</Label>
+                          <Input
+                            id="qty"
+                            name="qty"
+                            type="number"
+                            placeholder="Enter quantity"
+                            value={newProduct.qty}
+                            onChange={handleInputChange}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="size">Size</Label>
+                          <Select value={newProduct.sizeId} onValueChange={(value) => handleSelectChange("sizeId", value)}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select availability" />
+                              <SelectValue placeholder="Select size" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="In Stock">In Stock</SelectItem>
-                              <SelectItem value="Low Stock">Low Stock</SelectItem>
-                              <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-                              <SelectItem value="Discontinued">Discontinued</SelectItem>
+                              {sizes.map((size, idx) => (
+                                <SelectItem key={size.id} value={(idx + 1).toString()}>{size.label}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        
+                        <div className="space-y-2">
+                          <Label htmlFor="category">Category</Label>
+                          <Select value={newProduct.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((cat, idx) => (
+                                <SelectItem key={cat.id} value={(idx + 1).toString()}>{cat.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="image">Product Image</Label>
-                          <Input
-                            id="image"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="cursor-pointer"
+                          <UploadButton
+                            endpoint="imageUploader"
+                            onClientUploadComplete={(res) => {
+                              if (res && res[0]?.url) {
+                                setNewProduct((prev) => ({
+                                  ...prev,
+                                  imageUrls: [...prev.imageUrls, ...res.map(r => r.url)]
+                                }))
+                                toast.success("Image uploaded successfully!")
+                              } else {
+                                toast.error("Image upload failed")
+                              }
+                            }}
+                            onUploadError={(error: Error) => {
+                              toast.error(`ERROR! ${error.message}`)
+                            }}
                           />
                         </div>
                       </div>
-                      
                       <div className="space-y-2">
                         <Label htmlFor="description">Description</Label>
                         <Input
@@ -211,22 +255,25 @@ export default function ProductsPage() {
                           placeholder="Enter product description"
                           value={newProduct.description}
                           onChange={handleInputChange}
+                          required
                         />
                       </div>
-                      
-                      {imagePreview && (
+                      {newProduct.imageUrls.length > 0 && (
                         <div className="mt-4">
                           <Label>Image Preview</Label>
-                          <div className="mt-2 w-32 h-32 border rounded-lg overflow-hidden">
-                            <img
-                              src={imagePreview}
-                              alt="Product preview"
-                              className="w-full h-full object-cover"
-                            />
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {newProduct.imageUrls.map((url, idx) => (
+                              <div key={idx} className="w-32 h-32 border rounded-lg overflow-hidden">
+                                <img
+                                  src={url}
+                                  alt={`Product preview ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
-                      
                       <Button type="submit" className="w-full md:w-auto">
                         Add Product
                       </Button>
