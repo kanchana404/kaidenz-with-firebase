@@ -1,9 +1,7 @@
 "use client"
 import { AppSidebar } from "@/components/app-sidebar"
-import { DataTable } from "@/components/data-table"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import data from "../../data.json"
 import * as React from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -12,34 +10,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { UploadButton } from "@/utils/uploadthing"
 import { toast } from "sonner"
+import { ProductsTable } from "@/components/products-table"
 
-// Remove hardcoded categories and sizes arrays
-// const categories = [
-//   { id: "cat1", label: "Clothing" },
-//   { id: "cat2", label: "Electronics" },
-//   { id: "cat3", label: "Accessories" },
-//   { id: "cat4", label: "Other" },
-// ];
-// const sizes = [
-//   { id: "size_s", label: "Small" },
-//   { id: "size_m", label: "Medium" },
-//   { id: "size_l", label: "Large" },
-//   { id: "size_xl", label: "Extra Large" },
-// ];
+interface Product {
+  id: number
+  name: string
+  description: string
+  price: number
+  qty: number
+  categoryId: number
+  categoryName: string
+  sizeId: number
+  sizeName: string
+  imageUrls: string[]
+}
 
 export default function ProductsPage() {
   const [search, setSearch] = React.useState("")
-  const [products, setProducts] = React.useState(data)
+  const [products, setProducts] = React.useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([])
   const [categories, setCategories] = React.useState<{ id: string; label: string }[]>([])
   const [sizes, setSizes] = React.useState<{ id: string; label: string }[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [newProduct, setNewProduct] = React.useState<{
     name: string;
     description: string;
     price: string;
     qty: string;
     imageUrls: string[];
-    sizeId: string; // will store index as string
-    categoryId: string; // will store index as string
+    sizeId: string;
+    categoryId: string;
   }>({
     name: "",
     description: "",
@@ -49,7 +50,52 @@ export default function ProductsPage() {
     sizeId: "",
     categoryId: "",
   })
-  // Remove imagePreview state, we'll show all images
+
+  const fetchProducts = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      console.log("Fetching products...")
+      const response = await fetch("/api/product")
+      console.log("Response status:", response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      console.log("Products result:", result)
+      
+      if (result.success) {
+        setProducts(result.products || [])
+        setFilteredProducts(result.products || [])
+        console.log("Products loaded:", result.products?.length || 0)
+      } else {
+        console.error("Failed to fetch products:", result.error)
+        setError(result.error || "Failed to fetch products")
+        toast("Failed to fetch products", {
+          description: result.error || "Unknown error occurred while loading products",
+          action: {
+            label: "Retry",
+            onClick: () => fetchProducts(),
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      setError(errorMessage)
+      toast("Error fetching products", {
+        description: errorMessage,
+        action: {
+          label: "Retry",
+          onClick: () => fetchProducts(),
+        },
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   React.useEffect(() => {
     // Fetch categories
@@ -73,13 +119,18 @@ export default function ProductsPage() {
         })))
       })
       .catch(() => setSizes([]))
-  }, [])
+
+    // Fetch products
+    fetchProducts()
+  }, [fetchProducts])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value)
-    setProducts(
-      data.filter((item) =>
-        item.product.toLowerCase().includes(e.target.value.toLowerCase())
+    const searchTerm = e.target.value
+    setSearch(searchTerm)
+    setFilteredProducts(
+      products.filter((item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase())
       )
     )
   }
@@ -112,7 +163,16 @@ export default function ProductsPage() {
       })
       const result = await response.json()
       if (result.success) {
-        toast.success("Product added successfully!")
+        toast("Product Added Successfully", {
+          description: `${newProduct.name} has been added to your inventory`,
+          action: {
+            label: "View Product",
+            onClick: () => {
+              // Scroll to products table
+              document.querySelector('.products-table')?.scrollIntoView({ behavior: 'smooth' })
+            },
+          },
+        })
         setNewProduct({
           name: "",
           description: "",
@@ -122,11 +182,25 @@ export default function ProductsPage() {
           sizeId: "",
           categoryId: "",
         })
+        // Refresh products list
+        fetchProducts()
       } else {
-        toast.error("Failed to add product")
+        toast("Failed to Add Product", {
+          description: result.error || "An error occurred while adding the product",
+          action: {
+            label: "Retry",
+            onClick: () => handleAddProduct(e),
+          },
+        })
       }
     } catch {
-      toast.error("Failed to add product")
+      toast("Add Product Failed", {
+        description: "Network error occurred. Please check your connection and try again.",
+        action: {
+          label: "Retry",
+          onClick: () => handleAddProduct(e),
+        },
+      })
     }
   }
 
@@ -144,6 +218,48 @@ export default function ProductsPage() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <h1 className="text-2xl font-bold px-4 lg:px-6">Products</h1>
+
+              {/* Test Backend Button */}
+              <div className="px-4 lg:px-6">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/test")
+                      const result = await response.json()
+                      console.log("Test result:", result)
+                      if (result.success) {
+                        toast("Backend Connection Successful", {
+                          description: "Your Java backend is running and accessible",
+                          action: {
+                            label: "View Details",
+                            onClick: () => console.log("Backend details:", result),
+                          },
+                        })
+                      } else {
+                        toast("Backend Connection Failed", {
+                          description: result.error || "Unable to connect to backend server",
+                          action: {
+                            label: "Retry",
+                            onClick: () => window.location.reload(),
+                          },
+                        })
+                      }
+                    } catch (error) {
+                      toast("Connection Test Failed", {
+                        description: error instanceof Error ? error.message : "Unknown error occurred",
+                        action: {
+                          label: "Retry",
+                          onClick: () => window.location.reload(),
+                        },
+                      })
+                    }
+                  }}
+                  variant="outline"
+                  className="mb-4"
+                >
+                  Test Backend Connection
+                </Button>
+              </div>
 
               {/* Search Bar */}
               <div className="px-4 lg:px-6">
@@ -236,13 +352,31 @@ export default function ProductsPage() {
                                   ...prev,
                                   imageUrls: [...prev.imageUrls, ...res.map(r => r.url)]
                                 }))
-                                toast.success("Image uploaded successfully!")
+                                toast("Image Uploaded Successfully", {
+                                  description: `${res.length} image${res.length > 1 ? 's' : ''} added to product`,
+                                  action: {
+                                    label: "View Images",
+                                    onClick: () => console.log("Images uploaded:", res),
+                                  },
+                                })
                               } else {
-                                toast.error("Image upload failed")
+                                toast("Image Upload Failed", {
+                                  description: "Unable to upload image. Please try again.",
+                                  action: {
+                                    label: "Retry",
+                                    onClick: () => console.log("Retry upload"),
+                                  },
+                                })
                               }
                             }}
                             onUploadError={(error: Error) => {
-                              toast.error(`ERROR! ${error.message}`)
+                              toast("Upload Error", {
+                                description: error.message,
+                                action: {
+                                  label: "Retry",
+                                  onClick: () => console.log("Retry upload"),
+                                },
+                              })
                             }}
                           />
                         </div>
@@ -284,7 +418,29 @@ export default function ProductsPage() {
 
               {/* Products Table */}
               <div className="px-4 lg:px-6">
-                <DataTable data={products} />
+                {loading && (
+                  <div className="text-center py-8">
+                    <div className="text-lg">Loading products...</div>
+                  </div>
+                )}
+                
+                {error && (
+                  <div className="text-center py-8">
+                    <div className="text-red-500 text-lg mb-4">Error: {error}</div>
+                    <Button onClick={fetchProducts} variant="outline">
+                      Retry
+                    </Button>
+                  </div>
+                )}
+                
+                {!loading && !error && (
+                  <ProductsTable 
+                    products={filteredProducts} 
+                    categories={categories} 
+                    sizes={sizes}
+                    onProductUpdate={fetchProducts}
+                  />
+                )}
               </div>
             </div>
           </div>
