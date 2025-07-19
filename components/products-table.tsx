@@ -1,38 +1,36 @@
 "use client"
 
 import * as React from "react"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { UploadButton } from "@/utils/uploadthing"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Edit, X, Package, DollarSign, Hash, Tag, Ruler, Image as ImageIcon } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
+import { DollarSign, Edit, Hash, ImageIcon, Package, Ruler, Tag } from "lucide-react"
+
+interface ProductSize {
+  sizeId: number
+  sizeName: string
+  stockQuantity: number
+  price: number
+}
 
 interface Product {
   id: number
   name: string
   description: string
-  price: number
-  qty: number
+  basePrice: number
+  totalStock: number
   categoryId: number
   categoryName: string
-  sizeId: number
-  sizeName: string
   imageUrls: string[]
+  sizes: ProductSize[]
 }
 
 interface ProductsTableProps {
@@ -48,19 +46,21 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
   const [editForm, setEditForm] = React.useState<{
     name: string
     description: string
-    price: string
-    qty: string
+    basePrice: string
     imageUrls: string[]
     categoryId: string
-    sizeId: string
+    sizes: Array<{
+      sizeId: string
+      stockQuantity: string
+      price: string
+    }>
   }>({
     name: "",
     description: "",
-    price: "",
-    qty: "",
+    basePrice: "",
     imageUrls: [],
     categoryId: "",
-    sizeId: "",
+    sizes: [],
   })
 
   const handleEdit = (product: Product) => {
@@ -68,11 +68,14 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
     setEditForm({
       name: product.name,
       description: product.description,
-      price: product.price.toString(),
-      qty: product.qty.toString(),
+      basePrice: product.basePrice.toString(),
       imageUrls: product.imageUrls,
       categoryId: product.categoryId.toString(),
-      sizeId: product.sizeId.toString(),
+      sizes: product.sizes.map(size => ({
+        sizeId: size.sizeId.toString(),
+        stockQuantity: size.stockQuantity.toString(),
+        price: size.price.toString(),
+      })),
     })
     setIsEditDialogOpen(true)
   }
@@ -83,6 +86,24 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
 
   const handleSelectChange = (name: string, value: string) => {
     setEditForm({ ...editForm, [name]: value })
+  }
+
+  const handleSizeChange = (index: number, field: string, value: string) => {
+    const updatedSizes = [...editForm.sizes]
+    updatedSizes[index] = { ...updatedSizes[index], [field]: value }
+    setEditForm({ ...editForm, sizes: updatedSizes })
+  }
+
+  const addSize = () => {
+    setEditForm({
+      ...editForm,
+      sizes: [...editForm.sizes, { sizeId: "", stockQuantity: "", price: "" }]
+    })
+  }
+
+  const removeSize = (index: number) => {
+    const updatedSizes = editForm.sizes.filter((_, i) => i !== index)
+    setEditForm({ ...editForm, sizes: updatedSizes })
   }
 
   const handleUpdateProduct = async (e: React.FormEvent) => {
@@ -97,11 +118,14 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
           id: editingProduct.id,
           name: editForm.name,
           description: editForm.description,
-          price: parseFloat(editForm.price),
-          qty: parseInt(editForm.qty),
+          basePrice: parseFloat(editForm.basePrice),
           imageUrls: editForm.imageUrls,
           category: parseInt(editForm.categoryId),
-          size: parseInt(editForm.sizeId),
+          sizes: editForm.sizes.map(size => ({
+            sizeId: parseInt(size.sizeId),
+            stockQuantity: parseInt(size.stockQuantity),
+            price: parseFloat(size.price),
+          })),
         }),
       })
       const result = await response.json()
@@ -111,7 +135,6 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
           action: {
             label: "View Changes",
             onClick: () => {
-              // Could scroll to the updated product row
               console.log("Product updated:", editingProduct.id)
             },
           },
@@ -171,10 +194,10 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                   <TableRow className="hover:bg-transparent border-b">
                     <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Images</TableHead>
                     <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Product</TableHead>
-                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Price</TableHead>
-                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Stock</TableHead>
+                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Base Price</TableHead>
+                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Total Stock</TableHead>
+                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Sizes</TableHead>
                     <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Category</TableHead>
-                    <TableHead className="font-medium text-xs uppercase tracking-wide text-muted-foreground">Size</TableHead>
                     <TableHead className="text-right font-medium text-xs uppercase tracking-wide text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -216,25 +239,29 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                       <TableCell className="py-4">
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">{product.price.toFixed(2)}</span>
+                          <span className="font-medium">${product.basePrice.toFixed(2)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="py-4">
                         <Badge 
-                          variant={product.qty > 10 ? "default" : product.qty > 0 ? "secondary" : "destructive"}
+                          variant={product.totalStock > 10 ? "default" : product.totalStock > 0 ? "secondary" : "destructive"}
                           className="text-xs font-medium"
                         >
-                          {product.qty} units
+                          {product.totalStock} units
                         </Badge>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {product.sizes.map((size, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {size.sizeName} ({size.stockQuantity})
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="py-4">
                         <Badge variant="outline" className="text-xs">
                           {product.categoryName}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge variant="outline" className="text-xs">
-                          {product.sizeName}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right py-4">
@@ -303,15 +330,15 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">${product.price.toFixed(2)}</span>
+                        <span className="font-medium">${product.basePrice.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Hash className="h-3 w-3 text-muted-foreground" />
                         <Badge 
-                          variant={product.qty > 10 ? "default" : product.qty > 0 ? "secondary" : "destructive"}
+                          variant={product.totalStock > 10 ? "default" : product.totalStock > 0 ? "secondary" : "destructive"}
                           className="text-xs h-5"
                         >
-                          {product.qty}
+                          {product.totalStock}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-1">
@@ -322,9 +349,18 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                       </div>
                       <div className="flex items-center gap-1">
                         <Ruler className="h-3 w-3 text-muted-foreground" />
-                        <Badge variant="outline" className="text-xs h-5">
-                          {product.sizeName}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {product.sizes.slice(0, 2).map((size, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs h-5">
+                              {size.sizeName}
+                            </Badge>
+                          ))}
+                          {product.sizes.length > 2 && (
+                            <Badge variant="outline" className="text-xs h-5">
+                              +{product.sizes.length - 2}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -369,14 +405,14 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-price" className="text-xs font-medium">Price ($)</Label>
+                    <Label htmlFor="edit-basePrice" className="text-xs font-medium">Base Price ($)</Label>
                     <Input
-                      id="edit-price"
-                      name="price"
+                      id="edit-basePrice"
+                      name="basePrice"
                       type="number"
                       step="0.01"
                       placeholder="0.00"
-                      value={editForm.price}
+                      value={editForm.basePrice}
                       onChange={handleInputChange}
                       required
                       className="h-9"
@@ -398,7 +434,7 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                 </div>
               </div>
 
-              {/* Inventory & Classification */}
+              {/* Classification */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Tag className="h-4 w-4 text-muted-foreground" />
@@ -406,20 +442,7 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                 </div>
                 <Separator />
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-qty" className="text-xs font-medium">Stock Quantity</Label>
-                    <Input
-                      id="edit-qty"
-                      name="qty"
-                      type="number"
-                      placeholder="0"
-                      value={editForm.qty}
-                      onChange={handleInputChange}
-                      required
-                      className="h-9"
-                    />
-                  </div>
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-category" className="text-xs font-medium">Category</Label>
                     <Select value={editForm.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
@@ -433,112 +456,94 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-size" className="text-xs font-medium">Size</Label>
-                    <Select value={editForm.sizeId} onValueChange={(value) => handleSelectChange("sizeId", value)}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sizes.map((size, idx) => (
-                          <SelectItem key={size.id} value={(idx + 1).toString()}>{size.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               </div>
 
-              {/* Images Section */}
+              {/* Sizes and Stock */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium">Product Images</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Ruler className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium">Sizes & Stock</h3>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addSize}>
+                    Add Size
+                  </Button>
                 </div>
                 <Separator />
                 
-                <div className="space-y-4">
-                  <UploadButton
-                    endpoint="imageUploader"
-                    onClientUploadComplete={(res) => {
-                      if (res && res[0]?.url) {
-                        setEditForm((prev) => ({
-                          ...prev,
-                          imageUrls: [...prev.imageUrls, ...res.map(r => r.url)]
-                        }))
-                        toast("Image Uploaded Successfully", {
-                          description: `${res.length} image${res.length > 1 ? 's' : ''} added to product`,
-                          action: {
-                            label: "View Images",
-                            onClick: () => console.log("Images uploaded:", res),
-                          },
-                        })
-                      } else {
-                        toast("Image Upload Failed", {
-                          description: "Unable to upload image. Please try again.",
-                          action: {
-                            label: "Retry",
-                            onClick: () => console.log("Retry upload"),
-                          },
-                        })
-                      }
-                    }}
-                    onUploadError={(error: Error) => {
-                      toast("Upload Error", {
-                        description: error.message,
-                        action: {
-                          label: "Retry",
-                          onClick: () => console.log("Retry upload"),
-                        },
-                      })
-                    }}
-                  />
-
-                  {editForm.imageUrls.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium">Current Images</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {editForm.imageUrls.map((url, idx) => (
-                          <div key={idx} className="relative group aspect-square border rounded-lg overflow-hidden bg-muted">
-                            <img
-                              src={url}
-                              alt={`Product image ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                setEditForm(prev => ({
-                                  ...prev,
-                                  imageUrls: prev.imageUrls.filter((_, i) => i !== idx)
-                                }))
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
+                <div className="space-y-3">
+                  {editForm.sizes.map((size, index) => (
+                    <div key={index} className="grid grid-cols-3 gap-3 p-3 border rounded-lg">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Size</Label>
+                        <Select 
+                          value={size.sizeId} 
+                          onValueChange={(value) => handleSizeChange(index, "sizeId", value)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sizes.map((s, idx) => (
+                              <SelectItem key={s.id} value={(idx + 1).toString()}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Stock</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={size.stockQuantity}
+                          onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Price ($)</Label>
+                        <div className="flex gap-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={size.price}
+                            onChange={(e) => handleSizeChange(index, "price", e.target.value)}
+                            className="h-8"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeSize(index)}
+                            className="h-8 w-8 p-0"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {editForm.sizes.length === 0 && (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      No sizes added. Click "Add Size" to add product sizes.
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                <Button type="submit" className="flex-1 h-9">
-                  Update Product
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+              {/* Submit Button */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
-                  className="flex-1 h-9"
                 >
                   Cancel
+                </Button>
+                <Button type="submit">
+                  Update Product
                 </Button>
               </div>
             </form>

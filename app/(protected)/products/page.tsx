@@ -12,17 +12,23 @@ import { UploadButton } from "@/utils/uploadthing"
 import { toast } from "sonner"
 import { ProductsTable } from "@/components/products-table"
 
+interface ProductSize {
+  sizeId: number
+  sizeName: string
+  stockQuantity: number
+  price: number
+}
+
 interface Product {
   id: number
   name: string
   description: string
-  price: number
-  qty: number
+  basePrice: number
+  totalStock: number
   categoryId: number
   categoryName: string
-  sizeId: number
-  sizeName: string
   imageUrls: string[]
+  sizes: ProductSize[]
 }
 
 export default function ProductsPage() {
@@ -36,19 +42,21 @@ export default function ProductsPage() {
   const [newProduct, setNewProduct] = React.useState<{
     name: string;
     description: string;
-    price: string;
-    qty: string;
+    basePrice: string;
     imageUrls: string[];
-    sizeId: string;
     categoryId: string;
+    sizes: Array<{
+      sizeId: string;
+      stockQuantity: string;
+      price: string;
+    }>;
   }>({
     name: "",
     description: "",
-    price: "",
-    qty: "",
+    basePrice: "",
     imageUrls: [],
-    sizeId: "",
     categoryId: "",
+    sizes: [],
   })
 
   const fetchProducts = React.useCallback(async () => {
@@ -143,9 +151,36 @@ export default function ProductsPage() {
     setNewProduct({ ...newProduct, [name]: value })
   }
 
+  const handleSizeChange = (index: number, field: string, value: string) => {
+    const updatedSizes = [...newProduct.sizes]
+    updatedSizes[index] = { ...updatedSizes[index], [field]: value }
+    setNewProduct({ ...newProduct, sizes: updatedSizes })
+  }
+
+  const addSize = () => {
+    setNewProduct({
+      ...newProduct,
+      sizes: [...newProduct.sizes, { sizeId: "", stockQuantity: "", price: "" }]
+    })
+  }
+
+  const removeSize = (index: number) => {
+    const updatedSizes = newProduct.sizes.filter((_, i) => i !== index)
+    setNewProduct({ ...newProduct, sizes: updatedSizes })
+  }
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newProduct.name) return
+    if (!newProduct.name || newProduct.sizes.length === 0) {
+      toast("Validation Error", {
+        description: "Please provide a product name and at least one size",
+        action: {
+          label: "Fix",
+          onClick: () => console.log("Validation error"),
+        },
+      })
+      return
+    }
 
     try {
       const response = await fetch("/api/product", {
@@ -154,11 +189,14 @@ export default function ProductsPage() {
         body: JSON.stringify({
           name: newProduct.name,
           description: newProduct.description,
-          price: newProduct.price,
-          qty: newProduct.qty,
+          basePrice: parseFloat(newProduct.basePrice),
           imageUrls: newProduct.imageUrls,
-          category: Number(newProduct.categoryId),
-          size: Number(newProduct.sizeId),
+          category: parseInt(newProduct.categoryId),
+          sizes: newProduct.sizes.map(size => ({
+            sizeId: parseInt(size.sizeId),
+            stockQuantity: parseInt(size.stockQuantity),
+            price: parseFloat(size.price),
+          })),
         }),
       })
       const result = await response.json()
@@ -168,7 +206,6 @@ export default function ProductsPage() {
           action: {
             label: "View Product",
             onClick: () => {
-              // Scroll to products table
               document.querySelector('.products-table')?.scrollIntoView({ behavior: 'smooth' })
             },
           },
@@ -176,13 +213,11 @@ export default function ProductsPage() {
         setNewProduct({
           name: "",
           description: "",
-          price: "",
-          qty: "",
+          basePrice: "",
           imageUrls: [],
-          sizeId: "",
           categoryId: "",
+          sizes: [],
         })
-        // Refresh products list
         fetchProducts()
       } else {
         toast("Failed to Add Product", {
@@ -292,42 +327,17 @@ export default function ProductsPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="price">Price ($)</Label>
+                          <Label htmlFor="basePrice">Base Price ($)</Label>
                           <Input
-                            id="price"
-                            name="price"
+                            id="basePrice"
+                            name="basePrice"
                             type="number"
                             step="0.01"
-                            placeholder="Enter price"
-                            value={newProduct.price}
+                            placeholder="Enter base price"
+                            value={newProduct.basePrice}
                             onChange={handleInputChange}
                             required
                           />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="qty">Quantity</Label>
-                          <Input
-                            id="qty"
-                            name="qty"
-                            type="number"
-                            placeholder="Enter quantity"
-                            value={newProduct.qty}
-                            onChange={handleInputChange}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="size">Size</Label>
-                          <Select value={newProduct.sizeId} onValueChange={(value) => handleSelectChange("sizeId", value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select size" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {sizes.map((size, idx) => (
-                                <SelectItem key={size.id} value={(idx + 1).toString()}>{size.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="category">Category</Label>
@@ -392,6 +402,74 @@ export default function ProductsPage() {
                           required
                         />
                       </div>
+
+                      {/* Sizes Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Product Sizes & Stock</Label>
+                          <Button type="button" variant="outline" size="sm" onClick={addSize}>
+                            Add Size
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {newProduct.sizes.map((size, index) => (
+                            <div key={index} className="grid grid-cols-3 gap-3 p-3 border rounded-lg">
+                              <div className="space-y-2">
+                                <Label className="text-xs font-medium">Size</Label>
+                                <Select 
+                                  value={size.sizeId} 
+                                  onValueChange={(value) => handleSizeChange(index, "sizeId", value)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {sizes.map((s, idx) => (
+                                      <SelectItem key={s.id} value={(idx + 1).toString()}>{s.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs font-medium">Stock</Label>
+                                <Input
+                                  type="number"
+                                  placeholder="0"
+                                  value={size.stockQuantity}
+                                  onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs font-medium">Price ($)</Label>
+                                <div className="flex gap-1">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={size.price}
+                                    onChange={(e) => handleSizeChange(index, "price", e.target.value)}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => removeSize(index)}
+                                    className="h-10 w-10 p-0"
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {newProduct.sizes.length === 0 && (
+                            <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                              No sizes added. Click &quot;Add Size&quot; to add product sizes.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       {newProduct.imageUrls.length > 0 && (
                         <div className="mt-4">
                           <Label>Image Preview</Label>

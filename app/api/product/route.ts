@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log(body);
+    console.log("Adding product:", body);
     
     // Send data to Java backend
     const response = await fetch("http://localhost:8080/kaidenz/AddProduct", {
@@ -48,22 +48,33 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    console.log("API: Backend response status:", response.status);
+
     if (response.ok) {
       const result = await response.json();
-      return NextResponse.json({ success: true, data: result });
+      console.log("API: Backend response:", result);
+      return NextResponse.json(result);
     } else {
-      return NextResponse.json({ success: false, error: "Backend error" }, { status: 500 });
+      const errorText = await response.text();
+      console.error("API: Backend error response:", errorText);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Backend error: ${response.status} - ${errorText}` 
+      }, { status: 500 });
     }
   } catch (error) {
-    console.error("Error:", error);
-    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    console.error("API: Error adding product:", error);
+    return NextResponse.json({ 
+      success: false, 
+      error: `Failed to add product: ${error instanceof Error ? error.message : "Unknown error"}` 
+    }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log("Updating product:", body);
+    console.log("API: Updating product:", body);
     
     // Send data to Java backend
     const response = await fetch("http://localhost:8080/kaidenz/AddProduct", {
@@ -74,14 +85,25 @@ export async function PUT(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    console.log("API: Backend response status:", response.status);
+
     if (response.ok) {
       const result = await response.json();
-      return NextResponse.json({ success: true, data: result });
+      console.log("API: Backend response:", result);
+      return NextResponse.json(result);
     } else {
-      return NextResponse.json({ success: false, error: "Backend error" }, { status: 500 });
+      const errorText = await response.text();
+      console.error("API: Backend error response:", errorText);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Backend error: ${response.status} - ${errorText}` 
+      }, { status: 500 });
     }
   } catch (error) {
-    console.error("Error:", error);
-    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    console.error("API: Error updating product:", error);
+    return NextResponse.json({ 
+      success: false, 
+      error: `Failed to update product: ${error instanceof Error ? error.message : "Unknown error"}` 
+    }, { status: 500 });
   }
 }
