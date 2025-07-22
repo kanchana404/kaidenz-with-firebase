@@ -12,13 +12,18 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { DollarSign, Edit, Hash, ImageIcon, Package, Ruler, Tag } from "lucide-react"
+import { DollarSign, Edit, Hash, ImageIcon, Package, Palette, Ruler, Tag } from "lucide-react"
 
 interface ProductSize {
   sizeId: number
   sizeName: string
   stockQuantity: number
   price: number
+}
+
+interface ProductColor {
+  colorId: number
+  colorName: string
 }
 
 interface Product {
@@ -31,16 +36,18 @@ interface Product {
   categoryName: string
   imageUrls: string[]
   sizes: ProductSize[]
+  colors: ProductColor[]
 }
 
 interface ProductsTableProps {
   products: Product[]
   categories: { id: string; label: string }[]
   sizes: { id: string; label: string }[]
+  colors: { id: string; label: string }[]
   onProductUpdate: () => void
 }
 
-export function ProductsTable({ products, categories, sizes, onProductUpdate }: ProductsTableProps) {
+export function ProductsTable({ products, categories, sizes, colors, onProductUpdate }: ProductsTableProps) {
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editForm, setEditForm] = React.useState<{
@@ -54,6 +61,9 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
       stockQuantity: string
       price: string
     }>
+    colors: Array<{
+      colorId: string
+    }>
   }>({
     name: "",
     description: "",
@@ -61,9 +71,14 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
     imageUrls: [],
     categoryId: "",
     sizes: [],
+    colors: [],
   })
 
   const handleEdit = (product: Product) => {
+    console.log("Editing product:", product)
+    console.log("Product categoryId:", product.categoryId)
+    console.log("Product sizes:", product.sizes)
+    
     setEditingProduct(product)
     setEditForm({
       name: product.name,
@@ -75,6 +90,9 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
         sizeId: size.sizeId.toString(),
         stockQuantity: size.stockQuantity.toString(),
         price: size.price.toString(),
+      })),
+      colors: product.colors.map(color => ({
+        colorId: color.colorId.toString(),
       })),
     })
     setIsEditDialogOpen(true)
@@ -106,6 +124,24 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
     setEditForm({ ...editForm, sizes: updatedSizes })
   }
 
+  const handleColorChange = (index: number, field: string, value: string) => {
+    const updatedColors = [...editForm.colors]
+    updatedColors[index] = { ...updatedColors[index], [field]: value }
+    setEditForm({ ...editForm, colors: updatedColors })
+  }
+
+  const addColor = () => {
+    setEditForm({
+      ...editForm,
+      colors: [...editForm.colors, { colorId: "" }]
+    })
+  }
+
+  const removeColor = (index: number) => {
+    const updatedColors = editForm.colors.filter((_, i) => i !== index)
+    setEditForm({ ...editForm, colors: updatedColors })
+  }
+
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingProduct) return
@@ -125,6 +161,9 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
             sizeId: parseInt(size.sizeId),
             stockQuantity: parseInt(size.stockQuantity),
             price: parseFloat(size.price),
+          })),
+          colors: editForm.colors.map(color => ({
+            colorId: parseInt(color.colorId),
           })),
         }),
       })
@@ -206,7 +245,7 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                     <TableRow key={product.id} className="group hover:bg-muted/30 transition-colors">
                       <TableCell className="py-4">
                         <div className="flex -space-x-2">
-                          {product.imageUrls.slice(0, 3).map((url, idx) => (
+                          {(product.imageUrls || []).slice(0, 3).map((url, idx) => (
                             <div
                               key={idx}
                               className="relative w-10 h-10 rounded-full border-2 border-background overflow-hidden shadow-sm"
@@ -218,12 +257,12 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                               />
                             </div>
                           ))}
-                          {product.imageUrls.length > 3 && (
+                          {(product.imageUrls || []).length > 3 && (
                             <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-background bg-muted text-xs font-medium text-muted-foreground">
-                              +{product.imageUrls.length - 3}
+                              +{(product.imageUrls || []).length - 3}
                             </div>
                           )}
-                          {product.imageUrls.length === 0 && (
+                          {(product.imageUrls || []).length === 0 && (
                             <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/30 bg-muted/50">
                               <ImageIcon className="h-4 w-4 text-muted-foreground" />
                             </div>
@@ -252,7 +291,7 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                       </TableCell>
                       <TableCell className="py-4">
                         <div className="flex flex-wrap gap-1">
-                          {product.sizes.map((size, idx) => (
+                          {(product.sizes || []).map((size, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs">
                               {size.sizeName} ({size.stockQuantity})
                             </Badge>
@@ -304,9 +343,9 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                     </div>
                     
                     {/* Images */}
-                    {product.imageUrls.length > 0 && (
+                    {(product.imageUrls || []).length > 0 && (
                       <div className="flex -space-x-1 mb-3">
-                        {product.imageUrls.slice(0, 4).map((url, idx) => (
+                        {(product.imageUrls || []).slice(0, 4).map((url, idx) => (
                           <div
                             key={idx}
                             className="w-8 h-8 rounded-full border-2 border-background overflow-hidden shadow-sm"
@@ -318,9 +357,9 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                             />
                           </div>
                         ))}
-                        {product.imageUrls.length > 4 && (
+                        {(product.imageUrls || []).length > 4 && (
                           <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-background bg-muted text-xs font-medium text-muted-foreground">
-                            +{product.imageUrls.length - 4}
+                            +{(product.imageUrls || []).length - 4}
                           </div>
                         )}
                       </div>
@@ -350,14 +389,14 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                       <div className="flex items-center gap-1">
                         <Ruler className="h-3 w-3 text-muted-foreground" />
                         <div className="flex flex-wrap gap-1">
-                          {product.sizes.slice(0, 2).map((size, idx) => (
+                          {(product.sizes || []).slice(0, 2).map((size, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs h-5">
                               {size.sizeName}
                             </Badge>
                           ))}
-                          {product.sizes.length > 2 && (
+                          {(product.sizes || []).length > 2 && (
                             <Badge variant="outline" className="text-xs h-5">
-                              +{product.sizes.length - 2}
+                              +{(product.sizes || []).length - 2}
                             </Badge>
                           )}
                         </div>
@@ -450,8 +489,8 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((cat, idx) => (
-                          <SelectItem key={cat.id} value={(idx + 1).toString()}>{cat.label}</SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -485,8 +524,8 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                             <SelectValue placeholder="Select size" />
                           </SelectTrigger>
                           <SelectContent>
-                            {sizes.map((s, idx) => (
-                              <SelectItem key={s.id} value={(idx + 1).toString()}>{s.label}</SelectItem>
+                            {sizes.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -528,6 +567,57 @@ export function ProductsTable({ products, categories, sizes, onProductUpdate }: 
                   {editForm.sizes.length === 0 && (
                     <div className="text-center py-4 text-sm text-muted-foreground">
                       No sizes added. Click "Add Size" to add product sizes.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Colors */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Palette className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium">Colors</h3>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                    Add Color
+                  </Button>
+                </div>
+                <Separator />
+                
+                <div className="space-y-3">
+                  {editForm.colors.map((color, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="flex-1 space-y-2">
+                        <Label className="text-xs font-medium">Color</Label>
+                        <Select 
+                          value={color.colorId} 
+                          onValueChange={(value) => handleColorChange(index, "colorId", value)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select color" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {colors.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeColor(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                  {editForm.colors.length === 0 && (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      No colors added. Click "Add Color" to add product colors.
                     </div>
                   )}
                 </div>

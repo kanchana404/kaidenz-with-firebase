@@ -31,6 +31,11 @@ interface ProductSize {
   price: number
 }
 
+interface ProductColor {
+  colorId: number
+  colorName: string
+}
+
 interface Product {
   id: number
   name: string
@@ -41,6 +46,7 @@ interface Product {
   categoryName: string
   imageUrls: string[]
   sizes: ProductSize[]
+  colors: ProductColor[]
 }
 
 export default function ProductsPage() {
@@ -49,21 +55,26 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([])
   const [categories, setCategories] = React.useState<{ id: string; label: string }[]>([])
   const [sizes, setSizes] = React.useState<{ id: string; label: string }[]>([])
+  const [colors, setColors] = React.useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   
-  // New state for category and size management
+  // New state for category, size, and color management
   const [newCategory, setNewCategory] = React.useState("")
   const [newSize, setNewSize] = React.useState("")
+  const [newColor, setNewColor] = React.useState("")
   const [addingCategory, setAddingCategory] = React.useState(false)
   const [addingSize, setAddingSize] = React.useState(false)
+  const [addingColor, setAddingColor] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState("products")
   const [editingCategory, setEditingCategory] = React.useState<{ id: string; name: string } | null>(null)
   const [editingSize, setEditingSize] = React.useState<{ id: string; name: string } | null>(null)
+  const [editingColor, setEditingColor] = React.useState<{ id: string; name: string } | null>(null)
   const [deletingCategory, setDeletingCategory] = React.useState<string | null>(null)
   const [deletingSize, setDeletingSize] = React.useState<string | null>(null)
+  const [deletingColor, setDeletingColor] = React.useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [deleteTarget, setDeleteTarget] = React.useState<{ type: 'category' | 'size'; id: string; name: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<{ type: 'category' | 'size' | 'color'; id: string; name: string } | null>(null)
   
   const [newProduct, setNewProduct] = React.useState<{
     name: string;
@@ -76,6 +87,9 @@ export default function ProductsPage() {
       stockQuantity: string;
       price: string;
     }>;
+    colors: Array<{
+      colorId: string;
+    }>;
   }>({
     name: "",
     description: "",
@@ -83,7 +97,25 @@ export default function ProductsPage() {
     imageUrls: [],
     categoryId: "",
     sizes: [],
+    colors: [],
   })
+
+  const fetchColors = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/colors")
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setColors(result.colors.map((color: any) => ({
+            id: color.id.toString(),
+            label: color.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching colors:", error)
+    }
+  }, [])
 
   const fetchProducts = React.useCallback(async () => {
     try {
@@ -263,6 +295,45 @@ export default function ProductsPage() {
     }
   }
 
+  const handleAddColor = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newColor.trim()) {
+      toast("Validation Error", {
+        description: "Please enter a color name",
+      })
+      return
+    }
+
+    setAddingColor(true)
+    try {
+      const response = await fetch("/api/colors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newColor.trim() }),
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        toast("Color Added Successfully", {
+          description: `"${newColor}" has been added to colors`,
+        })
+        setNewColor("")
+        fetchColors() // Refresh the colors list
+      } else {
+        toast("Failed to Add Color", {
+          description: result.error || "An error occurred while adding the color",
+        })
+      }
+    } catch {
+      toast("Add Color Failed", {
+        description: "Network error occurred. Please check your connection and try again.",
+      })
+    } finally {
+      setAddingColor(false)
+    }
+  }
+
   const handleUpdateCategory = async (id: string, name: string) => {
     try {
       const formData = new FormData()
@@ -325,6 +396,34 @@ export default function ProductsPage() {
     }
   }
 
+  const handleUpdateColor = async (id: string, name: string) => {
+    try {
+      const response = await fetch("/api/colors", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: parseInt(id), name }),
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        toast("Color Updated Successfully", {
+          description: `Color has been updated to "${name}"`,
+        })
+        setEditingColor(null)
+        fetchColors() // Refresh the colors list
+      } else {
+        toast("Failed to Update Color", {
+          description: result.error || "An error occurred while updating the color",
+        })
+      }
+    } catch {
+      toast("Update Color Failed", {
+        description: "Network error occurred. Please check your connection and try again.",
+      })
+    }
+  }
+
   const handleDeleteCategory = (id: string, name: string) => {
     setDeleteTarget({ type: 'category', id, name })
     setDeleteDialogOpen(true)
@@ -334,6 +433,11 @@ export default function ProductsPage() {
 
   const handleDeleteSize = (id: string, name: string) => {
     setDeleteTarget({ type: 'size', id, name })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteColor = (id: string, name: string) => {
+    setDeleteTarget({ type: 'color', id, name })
     setDeleteDialogOpen(true)
   }
 
@@ -401,6 +505,32 @@ export default function ProductsPage() {
       } finally {
         setDeletingSize(null)
       }
+    } else if (deleteTarget.type === 'color') {
+      setDeletingColor(deleteTarget.id)
+      try {
+        const response = await fetch(`/api/colors?id=${deleteTarget.id}`, {
+          method: "DELETE",
+        })
+
+        const result = await response.json()
+        
+        if (result.success) {
+          toast("Color Deleted Successfully", {
+            description: `"${deleteTarget.name}" has been deleted from colors`,
+          })
+          fetchColors() // Refresh the colors list
+        } else {
+          toast("Failed to Delete Color", {
+            description: result.error || "An error occurred while deleting the color",
+          })
+        }
+      } catch {
+        toast("Delete Color Failed", {
+          description: "Network error occurred. Please check your connection and try again.",
+        })
+      } finally {
+        setDeletingColor(null)
+      }
     }
 
     setDeleteDialogOpen(false)
@@ -414,9 +544,12 @@ export default function ProductsPage() {
     // Fetch sizes
     fetchSizes()
 
+    // Fetch colors
+    fetchColors()
+
     // Fetch products
     fetchProducts()
-  }, [fetchProducts, fetchCategories, fetchSizes])
+  }, [fetchProducts, fetchCategories, fetchSizes, fetchColors])
 
 
 
@@ -457,6 +590,24 @@ export default function ProductsPage() {
     setNewProduct({ ...newProduct, sizes: updatedSizes })
   }
 
+  const handleColorChange = (index: number, field: string, value: string) => {
+    const updatedColors = [...newProduct.colors]
+    updatedColors[index] = { ...updatedColors[index], [field]: value }
+    setNewProduct({ ...newProduct, colors: updatedColors })
+  }
+
+  const addColor = () => {
+    setNewProduct({
+      ...newProduct,
+      colors: [...newProduct.colors, { colorId: "" }]
+    })
+  }
+
+  const removeColor = (index: number) => {
+    const updatedColors = newProduct.colors.filter((_, i) => i !== index)
+    setNewProduct({ ...newProduct, colors: updatedColors })
+  }
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newProduct.name || newProduct.sizes.length === 0) {
@@ -485,6 +636,9 @@ export default function ProductsPage() {
             stockQuantity: parseInt(size.stockQuantity),
             price: parseFloat(size.price),
           })),
+          colors: newProduct.colors.map(color => ({
+            colorId: parseInt(color.colorId),
+          })),
         }),
       })
       const result = await response.json()
@@ -505,6 +659,7 @@ export default function ProductsPage() {
           imageUrls: [],
           categoryId: "",
           sizes: [],
+          colors: [],
         })
         fetchProducts()
       } else {
@@ -555,7 +710,7 @@ export default function ProductsPage() {
               {/* Tabs for different sections */}
               <div className="px-4 lg:px-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 bg-background border border-border shadow-sm">
+                  <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 bg-background border border-border shadow-sm">
                     <TabsTrigger 
                       value="products" 
                       className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted/50 transition-colors"
@@ -582,6 +737,15 @@ export default function ProductsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                       </svg>
                       Sizes
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="colors" 
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted/50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                      </svg>
+                      Colors
                     </TabsTrigger>
                   </TabsList>
                   
@@ -750,6 +914,52 @@ export default function ProductsPage() {
                             </div>
                           </div>
 
+                          {/* Colors Section */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">Product Colors</Label>
+                              <Button type="button" variant="outline" size="sm" onClick={addColor}>
+                                Add Color
+                              </Button>
+                            </div>
+                            <div className="space-y-3">
+                              {newProduct.colors.map((color, index) => (
+                                <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                                  <div className="flex-1 space-y-2">
+                                    <Label className="text-xs font-medium">Color</Label>
+                                    <Select 
+                                      value={color.colorId} 
+                                      onValueChange={(value) => handleColorChange(index, "colorId", value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select color" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {colors.map((c) => (
+                                          <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => removeColor(index)}
+                                    className="h-10 w-10 p-0"
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+                              ))}
+                              {newProduct.colors.length === 0 && (
+                                <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                                  No colors added. Click "Add Color" to add product colors.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
                           {newProduct.imageUrls.length > 0 && (
                             <div className="mt-4">
                               <Label>Image Preview</Label>
@@ -794,6 +1004,7 @@ export default function ProductsPage() {
                         products={filteredProducts} 
                         categories={categories} 
                         sizes={sizes}
+                        colors={colors}
                         onProductUpdate={fetchProducts}
                       />
                     )}
@@ -967,6 +1178,94 @@ export default function ProductsPage() {
                             {sizes.length === 0 && (
                               <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
                                 No sizes found. Add your first size above.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  {/* Colors Tab */}
+                  <TabsContent value="colors" className="space-y-4 mt-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Manage Colors</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {/* Add Color Form */}
+                          <form onSubmit={handleAddColor} className="flex gap-2">
+                            <div className="flex-1">
+                              <Input
+                                placeholder="Enter new color name"
+                                value={newColor}
+                                onChange={(e) => setNewColor(e.target.value)}
+                                disabled={addingColor}
+                              />
+                            </div>
+                            <Button type="submit" disabled={addingColor || !newColor.trim()}>
+                              {addingColor ? "Adding..." : "Add Color"}
+                            </Button>
+                          </form>
+
+                          {/* Colors List */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Existing Colors</Label>
+                            <div className="space-y-2">
+                              {colors.map((color, index) => (
+                                <div key={color.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                                  {editingColor?.id === color.id ? (
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <Input
+                                        value={editingColor.name}
+                                        onChange={(e) => setEditingColor({ ...editingColor, name: e.target.value })}
+                                        className="flex-1"
+                                        autoFocus
+                                      />
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleUpdateColor(color.id, editingColor.name)}
+                                        disabled={!editingColor.name.trim()}
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setEditingColor(null)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="font-medium">{index + 1}. {color.label}</span>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setEditingColor({ id: color.id, name: color.label })}
+                                        >
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={() => handleDeleteColor(color.id, color.label)}
+                                          disabled={deletingColor === color.id}
+                                        >
+                                          {deletingColor === color.id ? "Deleting..." : "Delete"}
+                                        </Button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {colors.length === 0 && (
+                              <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                                No colors found. Add your first color above.
                               </div>
                             )}
                           </div>

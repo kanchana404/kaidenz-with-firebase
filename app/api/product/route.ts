@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET() {
   try {
     console.log("API: Fetching products from backend...")
-    const response = await fetch("http://localhost:8080/kaidenz/AddProduct", {
+    const response = await fetch("http://localhost:8080/kaidenz/GetProducts", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
