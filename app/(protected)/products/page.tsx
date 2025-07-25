@@ -12,6 +12,8 @@ import { UploadButton } from "@/utils/uploadthing"
 import { toast } from "sonner"
 import { ProductsTable } from "@/components/products-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { X, Plus, Image as ImageIcon, Package, Palette } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -590,58 +592,124 @@ export default function ProductsPage() {
     setNewProduct({ ...newProduct, sizes: updatedSizes })
   }
 
-  const handleColorChange = (index: number, field: string, value: string) => {
-    const updatedColors = [...newProduct.colors]
-    updatedColors[index] = { ...updatedColors[index], [field]: value }
-    setNewProduct({ ...newProduct, colors: updatedColors })
-  }
-
-  const addColor = () => {
+  const handleColorSelect = (colorId: string) => {
+    const color = colors.find(c => c.id === colorId)
+    if (!color) return
+    
+    // Check if color is already selected
+    const isAlreadySelected = newProduct.colors.some(c => c.colorId === colorId)
+    if (isAlreadySelected) return
+    
     setNewProduct({
       ...newProduct,
-      colors: [...newProduct.colors, { colorId: "" }]
+      colors: [...newProduct.colors, { colorId }]
     })
   }
 
-  const removeColor = (index: number) => {
-    const updatedColors = newProduct.colors.filter((_, i) => i !== index)
-    setNewProduct({ ...newProduct, colors: updatedColors })
+  const removeSelectedColor = (colorId: string) => {
+    setNewProduct({
+      ...newProduct,
+      colors: newProduct.colors.filter(c => c.colorId !== colorId)
+    })
+  }
+
+  const getSelectedColorNames = () => {
+    return newProduct.colors.map(color => {
+      const colorData = colors.find(c => c.id === color.colorId)
+      return colorData?.label || 'Unknown'
+    })
   }
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newProduct.name || newProduct.sizes.length === 0) {
+    
+    // Comprehensive validation
+    const validationErrors = []
+    
+    if (!newProduct.name.trim()) {
+      validationErrors.push("Product name is required")
+    }
+    
+    if (!newProduct.description.trim()) {
+      validationErrors.push("Product description is required")
+    }
+    
+    if (!newProduct.basePrice || parseFloat(newProduct.basePrice) <= 0) {
+      validationErrors.push("Valid base price is required")
+    }
+    
+    if (!newProduct.categoryId) {
+      validationErrors.push("Product category is required")
+    }
+    
+    if (newProduct.sizes.length === 0) {
+      validationErrors.push("At least one size is required")
+    } else {
+      // Validate each size
+      newProduct.sizes.forEach((size, index) => {
+        if (!size.sizeId) {
+          validationErrors.push(`Size ${index + 1}: Size selection is required`)
+        }
+        if (!size.stockQuantity || parseInt(size.stockQuantity) < 0) {
+          validationErrors.push(`Size ${index + 1}: Valid stock quantity is required`)
+        }
+        if (!size.price || parseFloat(size.price) <= 0) {
+          validationErrors.push(`Size ${index + 1}: Valid price is required`)
+        }
+      })
+    }
+    
+    if (newProduct.imageUrls.length === 0) {
+      validationErrors.push("At least one product image is required")
+    }
+    
+    if (validationErrors.length > 0) {
       toast("Validation Error", {
-        description: "Please provide a product name and at least one size",
-        action: {
-          label: "Fix",
-          onClick: () => console.log("Validation error"),
-        },
+        description: (
+          <div className="space-y-1">
+            <div className="font-medium">Please fix the following issues:</div>
+            <ul className="text-sm space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+        duration: 5000,
       })
       return
     }
 
     try {
+      const requestBody = {
+        name: newProduct.name.trim(),
+        description: newProduct.description.trim(),
+        basePrice: parseFloat(newProduct.basePrice),
+        imageUrls: newProduct.imageUrls,
+        category: newProduct.categoryId ? parseInt(newProduct.categoryId) : null,
+        sizes: newProduct.sizes.map(size => ({
+          sizeId: parseInt(size.sizeId),
+          stockQuantity: parseInt(size.stockQuantity),
+          price: parseFloat(size.price),
+        })),
+        colors: newProduct.colors.map(color => ({
+          colorId: parseInt(color.colorId),
+        })),
+      }
+      
+      console.log("Sending product data:", requestBody)
+      
       const response = await fetch("/api/product", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newProduct.name,
-          description: newProduct.description,
-          basePrice: parseFloat(newProduct.basePrice),
-          imageUrls: newProduct.imageUrls,
-          category: parseInt(newProduct.categoryId),
-          sizes: newProduct.sizes.map(size => ({
-            sizeId: parseInt(size.sizeId),
-            stockQuantity: parseInt(size.stockQuantity),
-            price: parseFloat(size.price),
-          })),
-          colors: newProduct.colors.map(color => ({
-            colorId: parseInt(color.colorId),
-          })),
-        }),
+        body: JSON.stringify(requestBody),
       })
+      
       const result = await response.json()
+      
       if (result.success) {
         toast("Product Added Successfully", {
           description: `${newProduct.name} has been added to your inventory`,
@@ -663,15 +731,34 @@ export default function ProductsPage() {
         })
         fetchProducts()
       } else {
+        // Handle specific backend errors
+        let errorMessage = result.error || "An error occurred while adding the product"
+        
+        // Parse common backend errors
+        if (errorMessage.includes("JsonNull")) {
+          errorMessage = "Missing required data. Please check all fields are filled correctly."
+        } else if (errorMessage.includes("category")) {
+          errorMessage = "Category is required. Please select a valid category."
+        } else if (errorMessage.includes("size")) {
+          errorMessage = "Size configuration is invalid. Please check size, stock, and price values."
+        } else if (errorMessage.includes("color")) {
+          errorMessage = "Color selection is invalid. Please check color values."
+        } else if (errorMessage.includes("image")) {
+          errorMessage = "Image upload failed. Please try uploading images again."
+        } else if (errorMessage.includes("500")) {
+          errorMessage = "Server error. Please try again or contact support if the issue persists."
+        }
+        
         toast("Failed to Add Product", {
-          description: result.error || "An error occurred while adding the product",
+          description: errorMessage,
           action: {
             label: "Retry",
             onClick: () => handleAddProduct(e),
           },
         })
       }
-    } catch {
+    } catch (error) {
+      console.error("Add product error:", error)
       toast("Add Product Failed", {
         description: "Network error occurred. Please check your connection and try again.",
         action: {
@@ -750,54 +837,84 @@ export default function ProductsPage() {
                   </TabsList>
                   
                   {/* Products Tab */}
-                  <TabsContent value="products" className="space-y-4 mt-6">
+                  <TabsContent value="products" className="space-y-6 mt-6">
                     {/* Add Product Form */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Add New Product</CardTitle>
+                    <Card className="border-0 shadow-sm bg-gradient-to-br from-background to-muted/20">
+                      <CardHeader className="pb-6">
+                        <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+                          <Package className="w-5 h-5 text-primary" />
+                          Add New Product
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <form onSubmit={handleAddProduct} className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <form onSubmit={handleAddProduct} className="space-y-6">
+                          {/* Basic Information */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Basic Information</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="name" className="text-sm font-medium">Product Name</Label>
+                                <Input
+                                  id="name"
+                                  name="name"
+                                  placeholder="Enter product name"
+                                  value={newProduct.name}
+                                  onChange={handleInputChange}
+                                  className="h-10 border-border/50 focus:border-primary/50"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="basePrice" className="text-sm font-medium">Base Price ($)</Label>
+                                <Input
+                                  id="basePrice"
+                                  name="basePrice"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={newProduct.basePrice}
+                                  onChange={handleInputChange}
+                                  className="h-10 border-border/50 focus:border-primary/50"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="category" className="text-sm font-medium">Category</Label>
+                                <Select value={newProduct.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
+                                  <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
+                                    <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {categories.map((cat) => (
+                                      <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            
                             <div className="space-y-2">
-                              <Label htmlFor="name">Product Name</Label>
+                              <Label htmlFor="description" className="text-sm font-medium">Description</Label>
                               <Input
-                                id="name"
-                                name="name"
-                                placeholder="Enter product name"
-                                value={newProduct.name}
+                                id="description"
+                                name="description"
+                                placeholder="Enter product description"
+                                value={newProduct.description}
                                 onChange={handleInputChange}
+                                className="border-border/50 focus:border-primary/50"
                                 required
                               />
                             </div>
+                          </div>
+
+                          {/* Product Images */}
+                          <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                              <ImageIcon className="w-4 h-4" />
+                              Product Images
+                            </h3>
                             <div className="space-y-2">
-                              <Label htmlFor="basePrice">Base Price ($)</Label>
-                              <Input
-                                id="basePrice"
-                                name="basePrice"
-                                type="number"
-                                step="0.01"
-                                placeholder="Enter base price"
-                                value={newProduct.basePrice}
-                                onChange={handleInputChange}
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="category">Category</Label>
-                              <Select value={newProduct.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categories.map((cat) => (
-                                    <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="image">Product Image</Label>
+                              <Label className="text-sm font-medium">Upload Images</Label>
                               <UploadButton
                                 endpoint="imageUploader"
                                 onClientUploadComplete={(res) => {
@@ -808,190 +925,254 @@ export default function ProductsPage() {
                                     }))
                                     toast("Image Uploaded Successfully", {
                                       description: `${res.length} image${res.length > 1 ? 's' : ''} added to product`,
-                                      action: {
-                                        label: "View Images",
-                                        onClick: () => console.log("Images uploaded:", res),
-                                      },
                                     })
                                   } else {
                                     toast("Image Upload Failed", {
                                       description: "Unable to upload image. Please try again.",
-                                      action: {
-                                        label: "Retry",
-                                        onClick: () => console.log("Retry upload"),
-                                      },
                                     })
                                   }
                                 }}
                                 onUploadError={(error: Error) => {
                                   toast("Upload Error", {
                                     description: error.message,
-                                    action: {
-                                      label: "Retry",
-                                      onClick: () => console.log("Retry upload"),
-                                    },
                                   })
                                 }}
                               />
                             </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Input
-                              id="description"
-                              name="description"
-                              placeholder="Enter product description"
-                              value={newProduct.description}
-                              onChange={handleInputChange}
-                              required
-                            />
+                            
+                            {newProduct.imageUrls.length > 0 && (
+                              <div className="mt-4">
+                                <Label className="text-sm font-medium">Image Preview</Label>
+                                <div className="mt-2 flex flex-wrap gap-3">
+                                  {newProduct.imageUrls.map((url, idx) => (
+                                    <div key={idx} className="relative group">
+                                      <div className="w-24 h-24 border-2 border-border/50 rounded-lg overflow-hidden bg-muted/30">
+                                        <img
+                                          src={url}
+                                          alt={`Product preview ${idx + 1}`}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setNewProduct(prev => ({
+                                            ...prev,
+                                            imageUrls: prev.imageUrls.filter((_, i) => i !== idx)
+                                          }))
+                                        }}
+                                        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                                        aria-label="Remove image"
+                                        title="Remove image"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Sizes Section */}
+                          {/* Product Colors - Modern Design */}
                           <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-sm font-medium">Product Sizes & Stock</Label>
-                              <Button type="button" variant="outline" size="sm" onClick={addSize}>
-                                Add Size
-                              </Button>
-                            </div>
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                              <Palette className="w-4 h-4" />
+                              Product Colors
+                            </h3>
                             <div className="space-y-3">
-                              {newProduct.sizes.map((size, index) => (
-                                <div key={index} className="grid grid-cols-3 gap-3 p-3 border rounded-lg">
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-medium">Size</Label>
-                                    <Select 
-                                      value={size.sizeId} 
-                                      onValueChange={(value) => handleSizeChange(index, "sizeId", value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select size" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {sizes.map((s) => (
-                                          <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-medium">Stock</Label>
-                                    <Input
-                                      type="number"
-                                      placeholder="0"
-                                      value={size.stockQuantity}
-                                      onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-medium">Price ($)</Label>
-                                    <div className="flex gap-1">
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={size.price}
-                                        onChange={(e) => handleSizeChange(index, "price", e.target.value)}
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => removeSize(index)}
-                                        className="h-10 w-10 p-0"
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Select Colors</Label>
+                                <Select onValueChange={handleColorSelect}>
+                                  <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
+                                    <SelectValue placeholder="Choose colors to add" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {colors
+                                      .filter(color => !newProduct.colors.some(c => c.colorId === color.id))
+                                      .map((color) => (
+                                        <SelectItem key={color.id} value={color.id}>
+                                          {color.label}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {/* Selected Colors as Badges */}
+                              {newProduct.colors.length > 0 && (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Selected Colors</Label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {getSelectedColorNames().map((colorName, index) => (
+                                      <Badge 
+                                        key={index} 
+                                        variant="secondary" 
+                                        className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors"
                                       >
-                                        ×
-                                      </Button>
-                                    </div>
+                                        <span className="text-sm">{colorName}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeSelectedColor(newProduct.colors[index].colorId)}
+                                          className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                          aria-label={`Remove ${colorName} color`}
+                                          title={`Remove ${colorName} color`}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </Badge>
+                                    ))}
                                   </div>
                                 </div>
-                              ))}
-                              {newProduct.sizes.length === 0 && (
-                                <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                                  No sizes added. Click &quot;Add Size&quot; to add product sizes.
+                              )}
+                              
+                              {newProduct.colors.length === 0 && (
+                                <div className="text-center py-6 text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg bg-muted/20">
+                                  <Palette className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                                  No colors selected. Choose colors from the dropdown above.
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* Colors Section */}
+                          {/* Product Sizes - Badge Style */}
                           <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-sm font-medium">Product Colors</Label>
-                              <Button type="button" variant="outline" size="sm" onClick={addColor}>
-                                Add Color
-                              </Button>
-                            </div>
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              Product Sizes & Stock
+                            </h3>
                             <div className="space-y-3">
-                              {newProduct.colors.map((color, index) => (
-                                <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                                  <div className="flex-1 space-y-2">
-                                    <Label className="text-xs font-medium">Color</Label>
-                                    <Select 
-                                      value={color.colorId} 
-                                      onValueChange={(value) => handleColorChange(index, "colorId", value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select color" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {colors.map((c) => (
-                                          <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Select Size</Label>
+                                <div className="flex gap-2">
+                                  <Select onValueChange={(value) => {
+                                    const size = sizes.find(s => s.id === value)
+                                    if (!size) return
+                                    
+                                    // Check if size is already selected
+                                    const isAlreadySelected = newProduct.sizes.some(s => s.sizeId === value)
+                                    if (isAlreadySelected) return
+                                    
+                                    setNewProduct({
+                                      ...newProduct,
+                                      sizes: [...newProduct.sizes, { sizeId: value, stockQuantity: "", price: "" }]
+                                    })
+                                  }}>
+                                    <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
+                                      <SelectValue placeholder="Choose size to add" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sizes
+                                        .filter(size => !newProduct.sizes.some(s => s.sizeId === size.id))
+                                        .map((size) => (
+                                          <SelectItem key={size.id} value={size.id}>
+                                            {size.label}
+                                          </SelectItem>
                                         ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => removeColor(index)}
-                                    className="h-10 w-10 p-0"
+                                    </SelectContent>
+                                  </Select>
+                                  <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={addSize}
+                                    className="h-10 px-3 border-border/50 hover:border-primary/50"
                                   >
-                                    ×
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Add Size
                                   </Button>
                                 </div>
-                              ))}
-                              {newProduct.colors.length === 0 && (
-                                <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                                  No colors added. Click "Add Color" to add product colors.
+                              </div>
+                              
+                              {/* Selected Sizes as Badges */}
+                              {newProduct.sizes.length > 0 && (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Size Configuration</Label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {newProduct.sizes.map((size, index) => {
+                                      const sizeData = sizes.find(s => s.id === size.sizeId)
+                                      return (
+                                        <div key={index} className="relative group">
+                                          <Badge 
+                                            variant="secondary" 
+                                            className="flex items-center gap-4 px-4 py-2 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors min-w-[200px]"
+                                          >
+                                            {/* Size Name - Left Aligned */}
+                                            <span className="text-sm font-medium flex-1 text-left">
+                                              {sizeData?.label || 'Unknown'}
+                                            </span>
+                                            
+                                            {/* Stock Quantity - Center Aligned */}
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-muted-foreground">Qty:</span>
+                                              <input
+                                                type="number"
+                                                placeholder="0"
+                                                value={size.stockQuantity}
+                                                onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
+                                                className="w-12 h-6 text-xs text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1"
+                                              />
+                                            </div>
+                                            
+                                            {/* Price - Right Aligned */}
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-muted-foreground">$</span>
+                                              <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={size.price}
+                                                onChange={(e) => handleSizeChange(index, "price", e.target.value)}
+                                                className="w-16 h-6 text-xs text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1"
+                                              />
+                                            </div>
+                                            
+                                            {/* Remove Button */}
+                                            <button
+                                              type="button"
+                                              onClick={() => removeSize(index)}
+                                              className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors opacity-0 group-hover:opacity-100"
+                                              aria-label={`Remove ${sizeData?.label || 'size'}`}
+                                              title={`Remove ${sizeData?.label || 'size'}`}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </Badge>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {newProduct.sizes.length === 0 && (
+                                <div className="text-center py-8 text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg bg-muted/20">
+                                  <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                                  No sizes added. Choose sizes from the dropdown above or click &quot;Add Size&quot;.
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {newProduct.imageUrls.length > 0 && (
-                            <div className="mt-4">
-                              <Label>Image Preview</Label>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {newProduct.imageUrls.map((url, idx) => (
-                                  <div key={idx} className="w-32 h-32 border rounded-lg overflow-hidden">
-                                    <img
-                                      src={url}
-                                      alt={`Product preview ${idx + 1}`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <Button type="submit" className="w-full md:w-auto">
-                            Add Product
-                          </Button>
+                          <div className="pt-4 border-t border-border/50">
+                            <Button type="submit" className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Product
+                            </Button>
+                          </div>
                         </form>
                       </CardContent>
                     </Card>
 
                     {/* Products Table */}
                     {loading && (
-                      <div className="text-center py-8">
-                        <div className="text-lg">Loading products...</div>
+                      <div className="text-center py-12">
+                        <div className="text-lg text-muted-foreground">Loading products...</div>
                       </div>
                     )}
                     
                     {error && (
-                      <div className="text-center py-8">
+                      <div className="text-center py-12">
                         <div className="text-red-500 text-lg mb-4">Error: {error}</div>
                         <Button onClick={fetchProducts} variant="outline">
                           Retry
