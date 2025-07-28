@@ -1,3 +1,5 @@
+"use client"
+
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -6,6 +8,7 @@ import { CustomersTable } from "@/components/customers-table"
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { IconTrendingUp, IconTrendingDown, IconUsers, IconUserCheck } from "@tabler/icons-react"
+import { CustomersPageSkeleton } from "@/components/skeleton-loading"
 
 export default function CustomersPage() {
   const totalCustomers = customers.length

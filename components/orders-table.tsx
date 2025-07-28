@@ -58,7 +58,20 @@ const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <Badge variant="outline">{row.original.status}</Badge>,
+    cell: ({ row }) => {
+      const status = row.original.status
+      let variant: "default" | "secondary" | "destructive" | "outline" = "outline"
+      
+      if (status === "paid") {
+        variant = "default"
+      } else if (status === "pending") {
+        variant = "secondary"
+      } else if (status === "cancelled") {
+        variant = "destructive"
+      }
+      
+      return <Badge variant={variant}>{status}</Badge>
+    },
   },
   {
     accessorKey: "date",

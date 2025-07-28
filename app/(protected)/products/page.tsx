@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { ProductsTable } from "@/components/products-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { X, Plus, Image as ImageIcon, Package, Palette } from "lucide-react"
 import {
   AlertDialog,
@@ -1166,8 +1167,34 @@ export default function ProductsPage() {
 
                     {/* Products Table */}
                     {loading && (
-                      <div className="text-center py-12">
-                        <div className="text-lg text-muted-foreground">Loading products...</div>
+                      <div className="space-y-4">
+                        <Skeleton className="h-6 w-32" />
+                        <div className="overflow-hidden rounded-lg border">
+                          <div className="p-4">
+                            <div className="space-y-3">
+                              {/* Table header skeleton */}
+                              <div className="flex gap-4 pb-4 border-b">
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-4 w-20" />
+                              </div>
+                              {/* Table rows skeleton */}
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <div key={index} className="flex gap-4 py-3">
+                                  <Skeleton className="h-4 w-20" />
+                                  <Skeleton className="h-4 w-32" />
+                                  <Skeleton className="h-4 w-24" />
+                                  <Skeleton className="h-4 w-20" />
+                                  <Skeleton className="h-6 w-16 rounded-full" />
+                                  <Skeleton className="h-4 w-20" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                     
