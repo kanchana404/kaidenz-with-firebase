@@ -7,11 +7,27 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 type Customer = {
   id: number
-  name: string
+  user_id: string
+  first_name: string
+  last_name: string
   email: string
-  phone: string
-  status: string
-  joined: string
+  password: string
+  verification_code: string
+  address: {
+    id: number
+    line1: string
+    line2: string
+    postal_code: string
+    phone: number
+    city: {
+      id: number
+      name: string
+    }
+    province: {
+      id: number
+      name: string
+    }
+  }
 }
 
 export function CustomersTable({ data }: { data: Customer[] }) {
@@ -35,8 +51,9 @@ export function CustomersTable({ data }: { data: Customer[] }) {
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Phone</TableHead>
+          <TableHead>City</TableHead>
+          <TableHead>Province</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Joined</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -45,11 +62,16 @@ export function CustomersTable({ data }: { data: Customer[] }) {
             <TableCell>
               <Checkbox checked={selected.includes(customer.id)} onCheckedChange={() => toggleRow(customer.id)} aria-label="Select row" />
             </TableCell>
-            <TableCell>{customer.name}</TableCell>
+            <TableCell>{`${customer.first_name} ${customer.last_name}`}</TableCell>
             <TableCell>{customer.email}</TableCell>
-            <TableCell>{customer.phone}</TableCell>
-            <TableCell><Badge variant="outline">{customer.status}</Badge></TableCell>
-            <TableCell>{customer.joined}</TableCell>
+            <TableCell>{customer.address.phone}</TableCell>
+            <TableCell>{customer.address.city.name}</TableCell>
+            <TableCell>{customer.address.province.name}</TableCell>
+            <TableCell>
+              <Badge variant={customer.verification_code === "verified" ? "default" : "secondary"}>
+                {customer.verification_code === "verified" ? "Verified" : "Unverified"}
+              </Badge>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

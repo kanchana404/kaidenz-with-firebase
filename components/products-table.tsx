@@ -50,6 +50,22 @@ interface ProductsTableProps {
 export function ProductsTable({ products, categories, sizes, colors, onProductUpdate }: ProductsTableProps) {
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
+  
+  // Pagination calculations
+  const totalItems = products.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedProducts = products.slice(startIndex, endIndex)
+  
+  // Reset to first page when products change
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [products.length])
   const [editForm, setEditForm] = React.useState<{
     name: string
     description: string
@@ -220,7 +236,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-medium">Product Inventory</CardTitle>
             <Badge variant="secondary" className="text-xs">
-              {products.length} {products.length === 1 ? 'Product' : 'Products'}
+              {totalItems} {totalItems === 1 ? 'Product' : 'Products'} • Page {currentPage} of {totalPages}
             </Badge>
           </div>
         </CardHeader>
@@ -241,7 +257,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {paginatedProducts.map((product) => (
                     <TableRow key={product.id} className="group hover:bg-muted/30 transition-colors">
                       <TableCell className="py-4">
                         <div className="flex -space-x-2">
@@ -322,7 +338,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
 
             {/* Mobile/Tablet View */}
             <div className="lg:hidden space-y-4 p-4">
-              {products.map((product) => (
+              {paginatedProducts.map((product) => (
                 <Card key={product.id} className="border shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
@@ -408,6 +424,60 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
             </div>
           </div>
         </CardContent>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} products
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    const distance = Math.abs(page - currentPage);
+                    return distance <= 2 || page === 1 || page === totalPages;
+                  })
+                  .map((page, index, array) => {
+                    const showEllipsis = index > 0 && array[index - 1] !== page - 1;
+                    return (
+                      <React.Fragment key={page}>
+                        {showEllipsis && (
+                          <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Edit Sheet */}

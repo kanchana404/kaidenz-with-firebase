@@ -6,15 +6,11 @@ import {
   IconDashboard,
   IconFolder,
   IconReport,
-  IconSettings,
   IconUsers,
-  IconInnerShadowTop,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +20,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Image from "next/image"
+import Link from "next/link"
+import { UserButton, useUser } from "@clerk/nextjs"
 
 const data = {
   user: {
@@ -51,24 +50,15 @@ const data = {
       title: "Customers",
       url: "/customers",
       icon: IconUsers,
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: IconChartBar,
-    },
+    }
   ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
-    },
-  ],
+  navSecondary: [],
   documents: [],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useUser()
+  
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -76,12 +66,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-transparent"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Kaidenz</span>
-              </a>
+              <Link href="#" className="hover:bg-transparent">
+                <Image
+                  src="/logo_light.png"
+                  alt="Kaidenz Logo"
+                  width={130}
+                  height={130}
+                />
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -89,10 +83,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <div className="flex items-center gap-3 p-4">
+          <UserButton 
+            appearance={{
+              elements: {
+                avatarBox: "w-10 h-10",
+                userButtonPopoverCard: "shadow-lg border",
+              }
+            }}
+          />
+          <div className="flex flex-col min-w-0 flex-1">
+            <p className="text-sm font-medium text-white truncate">
+              {user?.fullName || user?.firstName || "User"}
+            </p>
+            <p className="text-xs text-white truncate">
+              {user?.primaryEmailAddress?.emailAddress || "No email"}
+            </p>
+          </div>
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

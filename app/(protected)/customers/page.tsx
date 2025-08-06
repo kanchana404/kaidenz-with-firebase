@@ -3,23 +3,93 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import customers from "../../customers.json"
 import { CustomersTable } from "@/components/customers-table"
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { IconTrendingUp, IconTrendingDown, IconUsers, IconUserCheck } from "@tabler/icons-react"
 import { CustomersPageSkeleton } from "@/components/skeleton-loading"
+import { useEffect, useState } from "react"
+
+type Customer = {
+  id: number
+  user_id: string
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+  verification_code: string
+  address: {
+    id: number
+    line1: string
+    line2: string
+    postal_code: string
+    phone: number
+    city: {
+      id: number
+      name: string
+    }
+    province: {
+      id: number
+      name: string
+    }
+  }
+}
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/kaidenz/GetUsers')
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const data = await response.json()
+        setCustomers(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch customers')
+        console.error('Error fetching customers:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCustomers()
+  }, [])
+
   const totalCustomers = customers.length
-  const activeCustomers = customers.filter(customer => customer.status === "Active").length
-  const inactiveCustomers = customers.filter(customer => customer.status === "Inactive").length
-  const newCustomersThisMonth = customers.filter(customer => {
-    const joinDate = new Date(customer.joined)
-    const currentMonth = new Date().getMonth()
-    const currentYear = new Date().getFullYear()
-    return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear
-  }).length
+  const verifiedCustomers = customers.filter(customer => customer.verification_code === "verified").length
+  const unverifiedCustomers = customers.filter(customer => customer.verification_code !== "verified").length
+  const customersPercentageVerified = totalCustomers > 0 ? Math.round((verifiedCustomers / totalCustomers) * 100) : 0
+
+  if (loading) {
+    return <CustomersPageSkeleton />
+  }
+
+  if (error) {
+    return (
+      <SidebarProvider
+        style={{
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties}
+      >
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <SiteHeader />
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-red-600">Error Loading Customers</h2>
+              <p className="text-muted-foreground">{error}</p>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
 
   return (
     <SidebarProvider
@@ -61,69 +131,69 @@ export default function CustomersPage() {
                 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Active Customers</CardDescription>
+                    <CardDescription>Verified Customers</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {activeCustomers}
+                      {verifiedCustomers}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
                         <IconTrendingUp />
-                        {Math.round((activeCustomers / totalCustomers) * 100)}%
+                        {customersPercentageVerified}%
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Currently active <IconUserCheck className="size-4" />
+                      Account verified <IconUserCheck className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      High engagement
+                      Email verified users
                     </div>
                   </CardFooter>
                 </Card>
 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>New This Month</CardDescription>
+                    <CardDescription>Cities Covered</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {newCustomersThisMonth}
+                      {new Set(customers.map(customer => customer.address.city.name)).size}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
                         <IconTrendingUp />
-                        +15.2%
+                        Geographic Reach
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      New registrations <IconTrendingUp className="size-4" />
+                      Service locations <IconTrendingUp className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      This month
+                      Unique cities
                     </div>
                   </CardFooter>
                 </Card>
 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Inactive Customers</CardDescription>
+                    <CardDescription>Unverified Customers</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {inactiveCustomers}
+                      {unverifiedCustomers}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
                         <IconTrendingDown />
-                        Need Attention
+                        Need Verification
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Re-engagement needed <IconTrendingDown className="size-4" />
+                      Verification pending <IconTrendingDown className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      Potential churn risk
+                      Email not verified
                     </div>
                   </CardFooter>
                 </Card>
