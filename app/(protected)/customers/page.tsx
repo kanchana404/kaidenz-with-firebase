@@ -18,19 +18,19 @@ type Customer = {
   email: string
   password: string
   verification_code: string
-  address: {
-    id: number
-    line1: string
-    line2: string
-    postal_code: string
-    phone: number
-    city: {
-      id: number
-      name: string
+  address?: {
+    id?: number
+    line1?: string
+    line2?: string
+    postal_code?: string
+    phone?: number
+    city?: {
+      id?: number
+      name?: string
     }
-    province: {
-      id: number
-      name: string
+    province?: {
+      id?: number
+      name?: string
     }
   }
 }
@@ -48,7 +48,24 @@ export default function CustomersPage() {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         const data = await response.json()
-        setCustomers(data)
+        console.log('Raw customer data from backend:', data)
+        
+        // Validate and sanitize the data
+        if (!Array.isArray(data)) {
+          throw new Error('Backend returned invalid data format - expected array')
+        }
+        
+        // Filter out customers with invalid address data and log them
+        const validCustomers = data.filter((customer: Customer) => {
+          if (!customer.address || !customer.address.city || !customer.address.city.name) {
+            console.warn('Customer with missing address data:', customer)
+            return false
+          }
+          return true
+        })
+        
+        console.log('Valid customers with complete address data:', validCustomers.length)
+        setCustomers(validCustomers)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch customers')
         console.error('Error fetching customers:', err)
@@ -156,7 +173,12 @@ export default function CustomersPage() {
                   <CardHeader>
                     <CardDescription>Cities Covered</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {new Set(customers.map(customer => customer.address.city.name)).size}
+                      {(() => {
+                        const citiesWithData = customers.filter(customer => customer.address?.city?.name)
+                        return citiesWithData.length > 0 
+                          ? new Set(citiesWithData.map(customer => customer.address!.city!.name)).size
+                          : 0
+                      })()}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">

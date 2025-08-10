@@ -13,19 +13,19 @@ type Customer = {
   email: string
   password: string
   verification_code: string
-  address: {
-    id: number
-    line1: string
-    line2: string
-    postal_code: string
-    phone: number
-    city: {
-      id: number
-      name: string
+  address?: {
+    id?: number
+    line1?: string
+    line2?: string
+    postal_code?: string
+    phone?: number
+    city?: {
+      id?: number
+      name?: string
     }
-    province: {
-      id: number
-      name: string
+    province?: {
+      id?: number
+      name?: string
     }
   }
 }
@@ -64,9 +64,9 @@ export function CustomersTable({ data }: { data: Customer[] }) {
             </TableCell>
             <TableCell>{`${customer.first_name} ${customer.last_name}`}</TableCell>
             <TableCell>{customer.email}</TableCell>
-            <TableCell>{customer.address.phone}</TableCell>
-            <TableCell>{customer.address.city.name}</TableCell>
-            <TableCell>{customer.address.province.name}</TableCell>
+            <TableCell>{customer.address?.phone || 'N/A'}</TableCell>
+            <TableCell>{customer.address?.city?.name || 'N/A'}</TableCell>
+            <TableCell>{customer.address?.province?.name || 'N/A'}</TableCell>
             <TableCell>
               <Badge variant={customer.verification_code === "verified" ? "default" : "secondary"}>
                 {customer.verification_code === "verified" ? "Verified" : "Unverified"}
