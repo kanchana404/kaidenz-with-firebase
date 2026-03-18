@@ -1,118 +1,94 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-const BACKEND_URL = 'http://localhost:8080/kaidenz/ColorController'
+import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
 
 export async function GET() {
   try {
-    const response = await fetch(BACKEND_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    const snapshot = await adminDb.collection("colors").get();
 
-    if (!response.ok) {
-      throw new Error(`Backend responded with status: ${response.status}`)
-    }
+    const colors = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json({ success: true, colors });
   } catch (error) {
-    console.error('Error fetching colors:', error)
+    console.error("Error fetching colors:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch colors' },
+      { success: false, error: "Failed to fetch colors" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    
-    const response = await fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
+    const body = await request.json();
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      return NextResponse.json(errorData, { status: response.status })
-    }
+    const docRef = await adminDb.collection("colors").add({
+      name: body.name,
+      hexCode: body.hexCode || "",
+    });
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json({
+      success: true,
+      id: docRef.id,
+      name: body.name,
+      hexCode: body.hexCode || "",
+    });
   } catch (error) {
-    console.error('Error adding color:', error)
+    console.error("Error adding color:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to add color' },
+      { success: false, error: "Failed to add color" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json()
-    
-    const response = await fetch(BACKEND_URL, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
+    const body = await request.json();
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      return NextResponse.json(errorData, { status: response.status })
+    if (!body.id) {
+      return NextResponse.json(
+        { success: false, error: "Color ID is required" },
+        { status: 400 }
+      );
     }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    await adminDb.collection("colors").doc(body.id).update({
+      name: body.name,
+      hexCode: body.hexCode || "",
+    });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating color:', error)
+    console.error("Error updating color:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update color' },
+      { success: false, error: "Failed to update color" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
     if (!id) {
       return NextResponse.json(
-        { success: false, error: 'Color ID is required' },
+        { success: false, error: "Color ID is required" },
         { status: 400 }
-      )
+      );
     }
 
-    const response = await fetch(`${BACKEND_URL}?id=${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      return NextResponse.json(errorData, { status: response.status })
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data)
+    await adminDb.collection("colors").doc(id).delete();
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting color:', error)
+    console.error("Error deleting color:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete color' },
+      { success: false, error: "Failed to delete color" },
       { status: 500 }
-    )
+    );
   }
-} 
+}

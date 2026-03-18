@@ -43,7 +43,7 @@ export default function CustomersPage() {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('http://localhost:8080/kaidenz/GetUsers')
+        const response = await fetch('/api/customers')
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }

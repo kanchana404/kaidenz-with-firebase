@@ -1,47 +1,38 @@
-import { ClerkProvider } from '@clerk/nextjs';
-import { Geist, Geist_Mono } from "next/font/google";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-import "../globals.css";
+"use client";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export default async function ProtectedLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const { user, loading, isAdmin } = useAuth();
+  const router = useRouter();
 
-  // Fetch user metadata from Clerk API
-  const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-  const user = await res.json();
-  if (user.private_metadata?.role !== "admin") {
-    redirect("/unauthorized");
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.replace("/sign-in");
+      } else if (!isAdmin) {
+        router.replace("/unauthorized");
+      }
+    }
+  }, [user, loading, isAdmin, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-white" />
+      </div>
+    );
   }
 
-  return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
-  );
-} 
+  if (!user || !isAdmin) {
+    return null;
+  }
+
+  return <>{children}</>;
+}

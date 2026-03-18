@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UploadButton } from "@/utils/uploadthing"
+import { Upload } from "lucide-react"
 import { toast } from "sonner"
 import { ProductsTable } from "@/components/products-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -56,7 +56,7 @@ export default function ProductsPage() {
   const [search, setSearch] = React.useState("")
   const [products, setProducts] = React.useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([])
-  const [categories, setCategories] = React.useState<{ id: string; label: string }[]>([])
+  const [categories, setCategories] = React.useState<{ id: string; label: string; imageUrl: string }[]>([])
   const [sizes, setSizes] = React.useState<{ id: string; label: string }[]>([])
   const [colors, setColors] = React.useState<{ id: string; label: string }[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -64,11 +64,15 @@ export default function ProductsPage() {
   
   // New state for category, size, and color management
   const [newCategory, setNewCategory] = React.useState("")
+  const [categoryImageFile, setCategoryImageFile] = React.useState<File | null>(null)
+  const [categoryImagePreview, setCategoryImagePreview] = React.useState<string | null>(null)
+  const [uploadingCategoryImage, setUploadingCategoryImage] = React.useState(false)
   const [newSize, setNewSize] = React.useState("")
   const [newColor, setNewColor] = React.useState("")
   const [addingCategory, setAddingCategory] = React.useState(false)
   const [addingSize, setAddingSize] = React.useState(false)
   const [addingColor, setAddingColor] = React.useState(false)
+  const [uploadingImage, setUploadingImage] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState("products")
   const [editingCategory, setEditingCategory] = React.useState<{ id: string; name: string } | null>(null)
   const [editingSize, setEditingSize] = React.useState<{ id: string; name: string } | null>(null)
@@ -172,10 +176,11 @@ export default function ProductsPage() {
       if (response.ok) {
         const result = await response.json()
         if (result.success) {
-          const data: Array<{ id: string; name: string }> = result.categories
+          const data: Array<{ id: string; name: string; imageUrl: string }> = result.categories
           setCategories(data.map((item) => ({
             id: item.id,
-            label: item.name
+            label: item.name,
+            imageUrl: item.imageUrl || "",
           })))
         } else {
           console.error("Failed to fetch categories:", result.error)
@@ -227,8 +232,35 @@ export default function ProductsPage() {
 
     setAddingCategory(true)
     try {
+      let imageUrl = ""
+
+      // Upload image if selected
+      if (categoryImageFile) {
+        setUploadingCategoryImage(true)
+        const uploadFormData = new FormData()
+        uploadFormData.append("file", categoryImageFile)
+
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        })
+        const uploadResult = await uploadResponse.json()
+        setUploadingCategoryImage(false)
+
+        if (uploadResult.success) {
+          imageUrl = uploadResult.url
+        } else {
+          toast("Image Upload Failed", {
+            description: "Failed to upload category image",
+          })
+          setAddingCategory(false)
+          return
+        }
+      }
+
       const formData = new FormData()
       formData.append("name", newCategory.trim())
+      formData.append("imageUrl", imageUrl)
 
       const response = await fetch("/api/categories", {
         method: "POST",
@@ -236,13 +268,15 @@ export default function ProductsPage() {
       })
 
       const result = await response.json()
-      
+
       if (result.success) {
         toast("Category Added Successfully", {
           description: `"${newCategory}" has been added to categories`,
         })
         setNewCategory("")
-        fetchCategories() // Refresh the categories list
+        setCategoryImageFile(null)
+        setCategoryImagePreview(null)
+        fetchCategories()
       } else {
         toast("Failed to Add Category", {
           description: result.error || "An error occurred while adding the category",
@@ -254,6 +288,7 @@ export default function ProductsPage() {
       })
     } finally {
       setAddingCategory(false)
+      setUploadingCategoryImage(false)
     }
   }
 
@@ -404,7 +439,7 @@ export default function ProductsPage() {
       const response = await fetch("/api/colors", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: parseInt(id), name }),
+        body: JSON.stringify({ id, name }),
       })
 
       const result = await response.json()
@@ -690,14 +725,14 @@ export default function ProductsPage() {
         description: newProduct.description.trim(),
         basePrice: parseFloat(newProduct.basePrice),
         imageUrls: newProduct.imageUrls,
-        category: newProduct.categoryId ? parseInt(newProduct.categoryId) : null,
+        category: newProduct.categoryId || null,
         sizes: newProduct.sizes.map(size => ({
-          sizeId: parseInt(size.sizeId),
+          sizeId: size.sizeId,
           stockQuantity: parseInt(size.stockQuantity),
           price: parseFloat(size.price),
         })),
         colors: newProduct.colors.map(color => ({
-          colorId: parseInt(color.colorId),
+          colorId: color.colorId,
         })),
       }
       
@@ -916,29 +951,63 @@ export default function ProductsPage() {
                             </h3>
                             <div className="space-y-2">
                               <Label className="text-sm font-medium">Upload Images</Label>
-                              <UploadButton
-                                endpoint="imageUploader"
-                                onClientUploadComplete={(res) => {
-                                  if (res && res[0]?.url) {
-                                    setNewProduct((prev) => ({
-                                      ...prev,
-                                      imageUrls: [...prev.imageUrls, ...res.map(r => r.url)]
-                                    }))
-                                    toast("Image Uploaded Successfully", {
-                                      description: `${res.length} image${res.length > 1 ? 's' : ''} added to product`,
-                                    })
-                                  } else {
-                                    toast("Image Upload Failed", {
-                                      description: "Unable to upload image. Please try again.",
-                                    })
-                                  }
-                                }}
-                                onUploadError={(error: Error) => {
-                                  toast("Upload Error", {
-                                    description: error.message,
-                                  })
-                                }}
-                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  disabled={uploadingImage}
+                                  onChange={async (e) => {
+                                    const files = e.target.files
+                                    if (!files || files.length === 0) return
+
+                                    setUploadingImage(true)
+                                    try {
+                                      const uploadedUrls: string[] = []
+                                      for (const file of Array.from(files)) {
+                                        const formData = new FormData()
+                                        formData.append("file", file)
+                                        const res = await fetch("/api/upload", {
+                                          method: "POST",
+                                          body: formData,
+                                        })
+                                        const result = await res.json()
+                                        if (result.success && result.url) {
+                                          uploadedUrls.push(result.url)
+                                        }
+                                      }
+                                      if (uploadedUrls.length > 0) {
+                                        setNewProduct((prev) => ({
+                                          ...prev,
+                                          imageUrls: [...prev.imageUrls, ...uploadedUrls]
+                                        }))
+                                        toast("Image Uploaded Successfully", {
+                                          description: `${uploadedUrls.length} image${uploadedUrls.length > 1 ? 's' : ''} added to product`,
+                                        })
+                                      }
+                                    } catch (error) {
+                                      toast("Upload Error", {
+                                        description: "Failed to upload image. Please try again.",
+                                      })
+                                    } finally {
+                                      setUploadingImage(false)
+                                      e.target.value = ""
+                                    }
+                                  }}
+                                  className="hidden"
+                                  id="product-image-upload"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled={uploadingImage}
+                                  onClick={() => document.getElementById("product-image-upload")?.click()}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                  {uploadingImage ? "Uploading..." : "Upload Images"}
+                                </Button>
+                              </div>
                             </div>
                             
                             {newProduct.imageUrls.length > 0 && (
@@ -1227,18 +1296,70 @@ export default function ProductsPage() {
                       <CardContent>
                         <div className="space-y-4">
                           {/* Add Category Form */}
-                          <form onSubmit={handleAddCategory} className="flex gap-2">
-                            <div className="flex-1">
-                              <Input
-                                placeholder="Enter new category name"
-                                value={newCategory}
-                                onChange={(e) => setNewCategory(e.target.value)}
-                                disabled={addingCategory}
-                              />
+                          <form onSubmit={handleAddCategory} className="space-y-3">
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Input
+                                  placeholder="Enter new category name"
+                                  value={newCategory}
+                                  onChange={(e) => setNewCategory(e.target.value)}
+                                  disabled={addingCategory}
+                                />
+                              </div>
+                              <Button type="submit" disabled={addingCategory || !newCategory.trim()}>
+                                {addingCategory ? (uploadingCategoryImage ? "Uploading..." : "Adding...") : "Add Category"}
+                              </Button>
                             </div>
-                            <Button type="submit" disabled={addingCategory || !newCategory.trim()}>
-                              {addingCategory ? "Adding..." : "Add Category"}
-                            </Button>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  id="category-image-input"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      setCategoryImageFile(file)
+                                      setCategoryImagePreview(URL.createObjectURL(file))
+                                    }
+                                  }}
+                                  disabled={addingCategory}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => document.getElementById("category-image-input")?.click()}
+                                  disabled={addingCategory}
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  {categoryImageFile ? "Change Image" : "Upload Image"}
+                                </Button>
+                                {categoryImageFile && (
+                                  <span className="text-sm text-muted-foreground">{categoryImageFile.name}</span>
+                                )}
+                              </div>
+                              {categoryImagePreview && (
+                                <div className="relative">
+                                  <img
+                                    src={categoryImagePreview}
+                                    alt="Preview"
+                                    className="h-12 w-12 rounded object-cover border"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center text-xs"
+                                    onClick={() => {
+                                      setCategoryImageFile(null)
+                                      setCategoryImagePreview(null)
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </form>
 
                           {/* Categories List */}
@@ -1272,7 +1393,16 @@ export default function ProductsPage() {
                                     </div>
                                   ) : (
                                     <>
-                                      <span className="font-medium">{index + 1}. {category.label}</span>
+                                      <div className="flex items-center gap-3">
+                                        {category.imageUrl ? (
+                                          <img src={category.imageUrl} alt={category.label} className="h-10 w-10 rounded object-cover border" />
+                                        ) : (
+                                          <div className="h-10 w-10 rounded border border-dashed flex items-center justify-center">
+                                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <span className="font-medium">{index + 1}. {category.label}</span>
+                                      </div>
                                       <div className="flex gap-1">
                                         <Button
                                           size="sm"

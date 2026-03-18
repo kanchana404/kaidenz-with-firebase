@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/sidebar"
 import Image from "next/image"
 import Link from "next/link"
-import { UserButton, useUser } from "@clerk/nextjs"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { IconLogout } from "@tabler/icons-react"
 
 const data = {
   user: {
@@ -57,8 +59,14 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useUser()
-  
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await logout()
+    router.push("/sign-in")
+  }
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -86,22 +94,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-3 p-4">
-          <UserButton 
-            appearance={{
-              elements: {
-                avatarBox: "w-10 h-10",
-                userButtonPopoverCard: "shadow-lg border",
-              }
-            }}
-          />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-700 text-white text-sm font-medium">
+            {user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "A"}
+          </div>
           <div className="flex flex-col min-w-0 flex-1">
             <p className="text-sm font-medium text-white truncate">
-              {user?.fullName || user?.firstName || "User"}
+              {user?.displayName || "Admin"}
             </p>
             <p className="text-xs text-white truncate">
-              {user?.primaryEmailAddress?.emailAddress || "No email"}
+              {user?.email || "No email"}
             </p>
           </div>
+          <button
+            onClick={handleSignOut}
+            className="text-gray-400 hover:text-white transition-colors"
+            title="Sign out"
+          >
+            <IconLogout size={20} />
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

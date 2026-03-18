@@ -1,37 +1,33 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { NextResponse, NextRequest } from "next/server";
+import { getAuth } from "firebase-admin/auth";
+import { adminDb } from "@/lib/firebase-admin";
 
-export async function GET() {
-  // Use `auth()` to get the user's ID
-  const { userId } = await auth();
+const adminAuth = getAuth();
 
-  // Protect the route by checking if the user is signed in
-  if (!userId) {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get("Authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // Fetch user from Clerk backend API
-  const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
+  const idToken = authHeader.split("Bearer ")[1];
 
-  if (!clerkRes.ok) {
-    return new NextResponse("Failed to fetch user", { status: 500 });
-  }
+  try {
+    // Verify the Firebase ID token
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
 
-  const user = await clerkRes.json();
-  const privateMetadata = user.private_metadata;
+    // Check Firestore for admin role
+    const userDoc = await adminDb.collection("users").doc(uid).get();
 
-  // Check if user is admin
-  if (privateMetadata?.role === "admin") {
-    // Return admin panel data or success
-    return NextResponse.json({ admin: true, privateMetadata }, { status: 200 });
-  } else {
-    // Not admin: return unauthorized
-    return new NextResponse("Unauthorized: Not an admin", { status: 403 });
-    // Or: return NextResponse.redirect("/unauthorized");
+    if (userDoc.exists && userDoc.data()?.role === "admin") {
+      return NextResponse.json({ admin: true }, { status: 200 });
+    } else {
+      return NextResponse.json({ admin: false }, { status: 403 });
+    }
+  } catch (error) {
+    console.error("Auth verification error:", error);
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "982750705564",
+    "project_id": "kaidenz",
+    "storage_bucket": "kaidenz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982750705564:android:94310005e9b3bd17a87a59",
+        "android_client_info": {
+          "package_name": "kavithakanchana.me.eshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiQ6s-6d592Ml24FO8hyw1Ym2glGSM5mQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
