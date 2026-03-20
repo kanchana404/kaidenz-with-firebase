@@ -12,7 +12,17 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
-import { DollarSign, Edit, Hash, ImageIcon, Package, Palette, Ruler, Tag } from "lucide-react"
+import { DollarSign, Edit, Hash, ImageIcon, Package, Palette, Ruler, Tag, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ProductSize {
   sizeId: number
@@ -50,6 +60,8 @@ interface ProductsTableProps {
 export function ProductsTable({ products, categories, sizes, colors, onProductUpdate }: ProductsTableProps) {
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [deleteTarget, setDeleteTarget] = React.useState<Product | null>(null)
+  const [deletingProduct, setDeletingProduct] = React.useState(false)
   
   // Pagination state
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -217,8 +229,58 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
     }
   }
 
+  const handleDeleteProduct = async () => {
+    if (!deleteTarget) return
+    setDeletingProduct(true)
+    try {
+      const response = await fetch(`/api/product?id=${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+      const result = await response.json()
+      if (result.success) {
+        toast("Product Deleted", {
+          description: `"${deleteTarget.name}" has been removed from inventory`,
+        })
+        setDeleteTarget(null)
+        onProductUpdate()
+      } else {
+        toast("Failed to Delete", {
+          description: result.error || "An error occurred while deleting the product",
+        })
+      }
+    } catch {
+      toast("Delete Failed", {
+        description: "Network error occurred. Please try again.",
+      })
+    } finally {
+      setDeletingProduct(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingProduct}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              disabled={deletingProduct}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingProduct ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header Section */}
       <div className="flex flex-col space-y-2">
         <div className="flex items-center gap-2">
@@ -320,15 +382,26 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right py-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(product)}
-                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Edit product</span>
-                        </Button>
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(product)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit product</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(product)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete product</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -348,14 +421,24 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                           {product.description}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(product)}
-                        className="h-8 w-8 p-0 ml-2"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(product)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(product)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     
                     {/* Images */}

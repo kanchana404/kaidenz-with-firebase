@@ -58,7 +58,7 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([])
   const [categories, setCategories] = React.useState<{ id: string; label: string; imageUrl: string }[]>([])
   const [sizes, setSizes] = React.useState<{ id: string; label: string }[]>([])
-  const [colors, setColors] = React.useState<{ id: string; label: string }[]>([])
+  const [colors, setColors] = React.useState<{ id: string; label: string; hexCode: string }[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   
@@ -69,6 +69,8 @@ export default function ProductsPage() {
   const [uploadingCategoryImage, setUploadingCategoryImage] = React.useState(false)
   const [newSize, setNewSize] = React.useState("")
   const [newColor, setNewColor] = React.useState("")
+  const [selectedColorHex, setSelectedColorHex] = React.useState("")
+  const [colorPickerOpen, setColorPickerOpen] = React.useState(false)
   const [addingCategory, setAddingCategory] = React.useState(false)
   const [addingSize, setAddingSize] = React.useState(false)
   const [addingColor, setAddingColor] = React.useState(false)
@@ -76,7 +78,7 @@ export default function ProductsPage() {
   const [activeTab, setActiveTab] = React.useState("products")
   const [editingCategory, setEditingCategory] = React.useState<{ id: string; name: string } | null>(null)
   const [editingSize, setEditingSize] = React.useState<{ id: string; name: string } | null>(null)
-  const [editingColor, setEditingColor] = React.useState<{ id: string; name: string } | null>(null)
+  const [editingColor, setEditingColor] = React.useState<{ id: string; name: string; hexCode: string } | null>(null)
   const [deletingCategory, setDeletingCategory] = React.useState<string | null>(null)
   const [deletingSize, setDeletingSize] = React.useState<string | null>(null)
   const [deletingColor, setDeletingColor] = React.useState<string | null>(null)
@@ -92,7 +94,6 @@ export default function ProductsPage() {
     sizes: Array<{
       sizeId: string;
       stockQuantity: string;
-      price: string;
     }>;
     colors: Array<{
       colorId: string;
@@ -115,7 +116,8 @@ export default function ProductsPage() {
         if (result.success) {
           setColors(result.colors.map((color: any) => ({
             id: color.id.toString(),
-            label: color.name
+            label: color.name,
+            hexCode: color.hexCode || ""
           })))
         }
       }
@@ -333,11 +335,92 @@ export default function ProductsPage() {
     }
   }
 
-  const handleAddColor = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newColor.trim()) {
+  const COLOR_PALETTE: { group: string; colors: { name: string; hex: string }[] }[] = [
+    { group: "Red", colors: [
+      { name: "Light Red", hex: "#fca5a5" }, { name: "Coral Red", hex: "#f87171" }, { name: "True Red", hex: "#ef4444" },
+      { name: "Bold Red", hex: "#dc2626" }, { name: "Dark Red", hex: "#b91c1c" }, { name: "Deep Burgundy", hex: "#7f1d1d" },
+    ]},
+    { group: "Rose", colors: [
+      { name: "Soft Rose", hex: "#fda4af" }, { name: "Rose Pink", hex: "#fb7185" }, { name: "Hot Rose", hex: "#f43f5e" },
+      { name: "Deep Rose", hex: "#e11d48" }, { name: "Wine Rose", hex: "#9f1239" },
+    ]},
+    { group: "Pink", colors: [
+      { name: "Baby Pink", hex: "#fbcfe8" }, { name: "Light Pink", hex: "#f9a8d4" }, { name: "Bubblegum Pink", hex: "#f472b6" },
+      { name: "Hot Pink", hex: "#ec4899" }, { name: "Fuchsia Pink", hex: "#db2777" }, { name: "Dark Magenta", hex: "#9d174d" },
+    ]},
+    { group: "Orange", colors: [
+      { name: "Peach", hex: "#fdba74" }, { name: "Light Orange", hex: "#fb923c" }, { name: "True Orange", hex: "#f97316" },
+      { name: "Burnt Orange", hex: "#ea580c" }, { name: "Rust", hex: "#c2410c" }, { name: "Deep Rust", hex: "#9a3412" },
+    ]},
+    { group: "Amber", colors: [
+      { name: "Golden Yellow", hex: "#fcd34d" }, { name: "Amber Gold", hex: "#fbbf24" }, { name: "True Amber", hex: "#f59e0b" },
+      { name: "Dark Amber", hex: "#d97706" }, { name: "Caramel", hex: "#b45309" }, { name: "Bronze", hex: "#92400e" },
+    ]},
+    { group: "Yellow", colors: [
+      { name: "Soft Yellow", hex: "#fef08a" }, { name: "Lemon Yellow", hex: "#fde047" }, { name: "Bright Yellow", hex: "#facc15" },
+      { name: "Mustard Yellow", hex: "#eab308" }, { name: "Dark Mustard", hex: "#ca8a04" },
+    ]},
+    { group: "Lime", colors: [
+      { name: "Pale Lime", hex: "#d9f99d" }, { name: "Light Lime", hex: "#bef264" }, { name: "Lime Green", hex: "#84cc16" },
+      { name: "Olive Lime", hex: "#65a30d" }, { name: "Deep Olive", hex: "#4d7c0f" },
+    ]},
+    { group: "Green", colors: [
+      { name: "Mint Green", hex: "#86efac" }, { name: "Light Green", hex: "#4ade80" }, { name: "True Green", hex: "#22c55e" },
+      { name: "Forest Green", hex: "#16a34a" }, { name: "Dark Green", hex: "#15803d" }, { name: "Deep Forest", hex: "#14532d" },
+    ]},
+    { group: "Emerald", colors: [
+      { name: "Light Emerald", hex: "#6ee7b7" }, { name: "Emerald", hex: "#34d399" }, { name: "True Emerald", hex: "#10b981" },
+      { name: "Deep Emerald", hex: "#059669" }, { name: "Dark Emerald", hex: "#047857" },
+    ]},
+    { group: "Teal", colors: [
+      { name: "Light Teal", hex: "#5eead4" }, { name: "Teal", hex: "#2dd4bf" }, { name: "True Teal", hex: "#14b8a6" },
+      { name: "Deep Teal", hex: "#0d9488" }, { name: "Dark Teal", hex: "#0f766e" },
+    ]},
+    { group: "Cyan", colors: [
+      { name: "Light Cyan", hex: "#67e8f9" }, { name: "Cyan", hex: "#22d3ee" }, { name: "True Cyan", hex: "#06b6d4" },
+      { name: "Deep Cyan", hex: "#0891b2" }, { name: "Dark Cyan", hex: "#0e7490" },
+    ]},
+    { group: "Sky Blue", colors: [
+      { name: "Powder Blue", hex: "#bae6fd" }, { name: "Light Sky", hex: "#7dd3fc" }, { name: "Sky Blue", hex: "#38bdf8" },
+      { name: "Bright Sky", hex: "#0ea5e9" }, { name: "Deep Sky", hex: "#0284c7" },
+    ]},
+    { group: "Blue", colors: [
+      { name: "Baby Blue", hex: "#93c5fd" }, { name: "Light Blue", hex: "#60a5fa" }, { name: "True Blue", hex: "#3b82f6" },
+      { name: "Royal Blue", hex: "#2563eb" }, { name: "Deep Blue", hex: "#1d4ed8" }, { name: "Navy Blue", hex: "#1e40af" }, { name: "Dark Navy", hex: "#1e3a8a" },
+    ]},
+    { group: "Indigo", colors: [
+      { name: "Light Indigo", hex: "#a5b4fc" }, { name: "Soft Indigo", hex: "#818cf8" }, { name: "True Indigo", hex: "#6366f1" },
+      { name: "Deep Indigo", hex: "#4f46e5" }, { name: "Dark Indigo", hex: "#4338ca" }, { name: "Midnight Indigo", hex: "#312e81" },
+    ]},
+    { group: "Violet", colors: [
+      { name: "Lavender", hex: "#c4b5fd" }, { name: "Soft Violet", hex: "#a78bfa" }, { name: "True Violet", hex: "#8b5cf6" },
+      { name: "Deep Violet", hex: "#7c3aed" }, { name: "Dark Violet", hex: "#6d28d9" }, { name: "Eggplant", hex: "#4c1d95" },
+    ]},
+    { group: "Purple", colors: [
+      { name: "Lilac", hex: "#d8b4fe" }, { name: "Soft Purple", hex: "#c084fc" }, { name: "True Purple", hex: "#a855f7" },
+      { name: "Deep Purple", hex: "#9333ea" }, { name: "Royal Purple", hex: "#7e22ce" }, { name: "Dark Plum", hex: "#581c87" },
+    ]},
+    { group: "Fuchsia", colors: [
+      { name: "Light Fuchsia", hex: "#f0abfc" }, { name: "Soft Fuchsia", hex: "#e879f9" }, { name: "True Fuchsia", hex: "#d946ef" },
+      { name: "Deep Fuchsia", hex: "#c026d3" }, { name: "Dark Fuchsia", hex: "#a21caf" },
+    ]},
+    { group: "Neutral", colors: [
+      { name: "Off White", hex: "#f5f5f5" }, { name: "Light Gray", hex: "#e5e5e5" }, { name: "Silver", hex: "#d4d4d4" },
+      { name: "Medium Gray", hex: "#a3a3a3" }, { name: "Charcoal Gray", hex: "#737373" }, { name: "Dark Gray", hex: "#525252" },
+      { name: "Deep Charcoal", hex: "#404040" }, { name: "Near Black", hex: "#262626" }, { name: "Jet Black", hex: "#171717" },
+    ]},
+    { group: "Stone / Beige", colors: [
+      { name: "Cream", hex: "#f5f5f4" }, { name: "Light Beige", hex: "#e7e5e4" }, { name: "Beige", hex: "#d6d3d1" },
+      { name: "Taupe", hex: "#a8a29e" }, { name: "Stone Gray", hex: "#78716c" }, { name: "Dark Taupe", hex: "#57534e" },
+      { name: "Espresso", hex: "#44403c" }, { name: "Dark Brown", hex: "#292524" },
+    ]},
+  ]
+
+  const handleAddColor = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!newColor.trim() || !selectedColorHex) {
       toast("Validation Error", {
-        description: "Please enter a color name",
+        description: "Please select a color from the palette",
       })
       return
     }
@@ -347,17 +430,19 @@ export default function ProductsPage() {
       const response = await fetch("/api/colors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newColor.trim() }),
+        body: JSON.stringify({ name: newColor.trim(), hexCode: selectedColorHex }),
       })
 
       const result = await response.json()
-      
+
       if (result.success) {
         toast("Color Added Successfully", {
           description: `"${newColor}" has been added to colors`,
         })
         setNewColor("")
-        fetchColors() // Refresh the colors list
+        setSelectedColorHex("")
+        setColorPickerOpen(false)
+        fetchColors()
       } else {
         toast("Failed to Add Color", {
           description: result.error || "An error occurred while adding the color",
@@ -434,12 +519,12 @@ export default function ProductsPage() {
     }
   }
 
-  const handleUpdateColor = async (id: string, name: string) => {
+  const handleUpdateColor = async (id: string, name: string, hexCode?: string) => {
     try {
       const response = await fetch("/api/colors", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, name }),
+        body: JSON.stringify({ id, name, hexCode: hexCode || "" }),
       })
 
       const result = await response.json()
@@ -619,7 +704,7 @@ export default function ProductsPage() {
   const addSize = () => {
     setNewProduct({
       ...newProduct,
-      sizes: [...newProduct.sizes, { sizeId: "", stockQuantity: "", price: "" }]
+      sizes: [...newProduct.sizes, { sizeId: "", stockQuantity: "" }]
     })
   }
 
@@ -689,9 +774,6 @@ export default function ProductsPage() {
         if (!size.stockQuantity || parseInt(size.stockQuantity) < 0) {
           validationErrors.push(`Size ${index + 1}: Valid stock quantity is required`)
         }
-        if (!size.price || parseFloat(size.price) <= 0) {
-          validationErrors.push(`Size ${index + 1}: Valid price is required`)
-        }
       })
     }
     
@@ -729,7 +811,7 @@ export default function ProductsPage() {
         sizes: newProduct.sizes.map(size => ({
           sizeId: size.sizeId,
           stockQuantity: parseInt(size.stockQuantity),
-          price: parseFloat(size.price),
+          price: parseFloat(newProduct.basePrice),
         })),
         colors: newProduct.colors.map(color => ({
           colorId: color.colorId,
@@ -1125,7 +1207,7 @@ export default function ProductsPage() {
                                     
                                     setNewProduct({
                                       ...newProduct,
-                                      sizes: [...newProduct.sizes, { sizeId: value, stockQuantity: "", price: "" }]
+                                      sizes: [...newProduct.sizes, { sizeId: value, stockQuantity: "" }]
                                     })
                                   }}>
                                     <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
@@ -1172,7 +1254,7 @@ export default function ProductsPage() {
                                               {sizeData?.label || 'Unknown'}
                                             </span>
                                             
-                                            {/* Stock Quantity - Center Aligned */}
+                                            {/* Stock Quantity */}
                                             <div className="flex items-center gap-1">
                                               <span className="text-xs text-muted-foreground">Qty:</span>
                                               <input
@@ -1181,19 +1263,6 @@ export default function ProductsPage() {
                                                 value={size.stockQuantity}
                                                 onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
                                                 className="w-12 h-6 text-xs text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1"
-                                              />
-                                            </div>
-                                            
-                                            {/* Price - Right Aligned */}
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-xs text-muted-foreground">$</span>
-                                              <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                value={size.price}
-                                                onChange={(e) => handleSizeChange(index, "price", e.target.value)}
-                                                className="w-16 h-6 text-xs text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1"
                                               />
                                             </div>
                                             
@@ -1532,29 +1601,74 @@ export default function ProductsPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {/* Add Color Form */}
-                          <form onSubmit={handleAddColor} className="flex gap-2">
-                            <div className="flex-1">
-                              <Input
-                                placeholder="Enter new color name"
-                                value={newColor}
-                                onChange={(e) => setNewColor(e.target.value)}
-                                disabled={addingColor}
-                              />
+                          {/* Add Color - Palette Picker */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              {selectedColorHex && (
+                                <div
+                                  className="w-8 h-8 rounded-md border-2 border-white shadow-sm shrink-0"
+                                  style={{ backgroundColor: selectedColorHex }}
+                                />
+                              )}
+                              <div className="flex-1 text-sm font-medium">
+                                {selectedColorHex ? `${newColor} (${selectedColorHex})` : "Select a color from the palette below"}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setColorPickerOpen(!colorPickerOpen)}
+                              >
+                                {colorPickerOpen ? "Close Palette" : "Open Palette"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleAddColor}
+                                disabled={addingColor || !selectedColorHex}
+                              >
+                                {addingColor ? "Adding..." : "Add Color"}
+                              </Button>
                             </div>
-                            <Button type="submit" disabled={addingColor || !newColor.trim()}>
-                              {addingColor ? "Adding..." : "Add Color"}
-                            </Button>
-                          </form>
+
+                            {colorPickerOpen && (
+                              <div className="border rounded-lg p-4 max-h-[400px] overflow-y-auto space-y-3 bg-background">
+                                {COLOR_PALETTE.map((group) => (
+                                  <div key={group.group}>
+                                    <Label className="text-xs text-muted-foreground mb-1 block">{group.group}</Label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {group.colors.map((c) => (
+                                        <button
+                                          key={c.hex}
+                                          type="button"
+                                          title={`${c.name} (${c.hex})`}
+                                          className={`w-7 h-7 rounded-md border-2 transition-all hover:scale-110 ${
+                                            selectedColorHex === c.hex ? "border-white ring-2 ring-primary scale-110" : "border-transparent"
+                                          }`}
+                                          style={{ backgroundColor: c.hex }}
+                                          onClick={() => {
+                                            setSelectedColorHex(c.hex)
+                                            setNewColor(c.name)
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           {/* Colors List */}
                           <div className="space-y-2">
-                            <Label className="text-sm font-medium">Existing Colors</Label>
+                            <Label className="text-sm font-medium">Existing Colors ({colors.length})</Label>
                             <div className="space-y-2">
                               {colors.map((color, index) => (
                                 <div key={color.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                                   {editingColor?.id === color.id ? (
                                     <div className="flex items-center gap-2 flex-1">
+                                      <div
+                                        className="w-6 h-6 rounded border shrink-0"
+                                        style={{ backgroundColor: editingColor.hexCode || "#888" }}
+                                      />
                                       <Input
                                         value={editingColor.name}
                                         onChange={(e) => setEditingColor({ ...editingColor, name: e.target.value })}
@@ -1563,7 +1677,7 @@ export default function ProductsPage() {
                                       />
                                       <Button
                                         size="sm"
-                                        onClick={() => handleUpdateColor(color.id, editingColor.name)}
+                                        onClick={() => handleUpdateColor(color.id, editingColor.name, editingColor.hexCode)}
                                         disabled={!editingColor.name.trim()}
                                       >
                                         Save
@@ -1578,12 +1692,19 @@ export default function ProductsPage() {
                                     </div>
                                   ) : (
                                     <>
-                                      <span className="font-medium">{index + 1}. {color.label}</span>
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="w-6 h-6 rounded border shrink-0"
+                                          style={{ backgroundColor: color.hexCode || "#888" }}
+                                        />
+                                        <span className="font-medium">{index + 1}. {color.label}</span>
+                                        <span className="text-xs text-muted-foreground">{color.hexCode}</span>
+                                      </div>
                                       <div className="flex gap-1">
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => setEditingColor({ id: color.id, name: color.label })}
+                                          onClick={() => setEditingColor({ id: color.id, name: color.label, hexCode: color.hexCode })}
                                         >
                                           Edit
                                         </Button>
@@ -1603,7 +1724,7 @@ export default function ProductsPage() {
                             </div>
                             {colors.length === 0 && (
                               <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                                No colors found. Add your first color above.
+                                No colors found. Select a color from the palette above to add your first color.
                               </div>
                             )}
                           </div>

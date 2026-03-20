@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET() {
   try {
@@ -93,6 +94,13 @@ export async function POST(req: NextRequest) {
 
     const docRef = await adminDb.collection("products").add(productData);
 
+    // Increment category productCount
+    if (productData.categoryId) {
+      await adminDb.collection("categories").doc(productData.categoryId).update({
+        productCount: FieldValue.increment(1),
+      });
+    }
+
     return NextResponse.json({ success: true, id: docRef.id, ...productData });
   } catch (error) {
     console.error("Error adding product:", error);
@@ -145,7 +153,18 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Get product to find its category before deleting
+    const productDoc = await adminDb.collection("products").doc(id).get();
+    const categoryId = productDoc.data()?.categoryId;
+
     await adminDb.collection("products").doc(id).delete();
+
+    // Decrement category productCount
+    if (categoryId) {
+      await adminDb.collection("categories").doc(categoryId).update({
+        productCount: FieldValue.increment(-1),
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
