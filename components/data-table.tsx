@@ -69,7 +69,7 @@ const columns: ColumnDef<Order>[] = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => (
-      <div className="font-medium">${row.original.total.toFixed(2)}</div>
+      <div className="font-medium">LKR {row.original.total.toFixed(2)}</div>
     ),
   },
   {

@@ -356,7 +356,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                       <TableCell className="py-4">
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">${product.basePrice.toFixed(2)}</span>
+                          <span className="font-medium">LKR {product.basePrice.toFixed(2)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="py-4">
@@ -468,7 +468,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">${product.basePrice.toFixed(2)}</span>
+                        <span className="font-medium">LKR {product.basePrice.toFixed(2)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Hash className="h-3 w-3 text-muted-foreground" />
@@ -597,7 +597,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-basePrice" className="text-xs font-medium">Base Price ($)</Label>
+                    <Label htmlFor="edit-basePrice" className="text-xs font-medium">Base Price (LKR)</Label>
                     <Input
                       id="edit-basePrice"
                       name="basePrice"
@@ -694,7 +694,7 @@ export function ProductsTable({ products, categories, sizes, colors, onProductUp
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs font-medium">Price ($)</Label>
+                        <Label className="text-xs font-medium">Price (LKR)</Label>
                         <div className="flex gap-1">
                           <Input
                             type="number"

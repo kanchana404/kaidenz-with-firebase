@@ -983,7 +983,7 @@ export default function ProductsPage() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="basePrice" className="text-sm font-medium">Base Price ($)</Label>
+                                <Label htmlFor="basePrice" className="text-sm font-medium">Base Price (LKR)</Label>
                                 <Input
                                   id="basePrice"
                                   name="basePrice"

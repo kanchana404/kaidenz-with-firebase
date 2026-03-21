@@ -53,7 +53,7 @@ const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "total",
     header: "Total",
-    cell: ({ row }) => `$${row.original.total.toFixed(2)}`,
+    cell: ({ row }) => `LKR ${row.original.total.toFixed(2)}`,
   },
   {
     accessorKey: "status",

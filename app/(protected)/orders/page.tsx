@@ -195,7 +195,7 @@ export default function OrdersPage() {
     },
     {
       title: "Revenue",
-      value: `$${totalRevenue.toLocaleString()}`,
+      value: `LKR ${totalRevenue.toLocaleString()}`,
       description: "+12.5% from last month",
       icon: DollarSign,
       trend: "up"
@@ -364,7 +364,7 @@ export default function OrdersPage() {
                             {new Date(order.date).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            ${order.total.toLocaleString()}
+                            LKR {order.total.toLocaleString()}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

@@ -63,7 +63,7 @@ export function SectionCards({ orders }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Today's Revenue</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${todayTotal.toFixed(2)}
+            LKR {todayTotal.toFixed(2)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
@@ -86,7 +86,7 @@ export function SectionCards({ orders }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Last 7 Days</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${last7DaysTotal.toFixed(2)}
+            LKR {last7DaysTotal.toFixed(2)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
@@ -109,7 +109,7 @@ export function SectionCards({ orders }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>Last 30 Days</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${last30DaysTotal.toFixed(2)}
+            LKR {last30DaysTotal.toFixed(2)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
@@ -132,7 +132,7 @@ export function SectionCards({ orders }: SectionCardsProps) {
         <CardHeader>
           <CardDescription>All Time</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            ${allTimeTotal.toFixed(2)}
+            LKR {allTimeTotal.toFixed(2)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">

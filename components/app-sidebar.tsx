@@ -7,6 +7,7 @@ import {
   IconFolder,
   IconReport,
   IconUsers,
+  IconUserCircle,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -52,6 +53,11 @@ const data = {
       title: "Customers",
       url: "/customers",
       icon: IconUsers,
+    },
+    {
+      title: "Users",
+      url: "/users",
+      icon: IconUserCircle,
     }
   ],
   navSecondary: [],

@@ -6,50 +6,67 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { IconTrendingUp, IconUsers, IconShoppingCart, IconCash } from "@tabler/icons-react"
+import { IconTrendingUp, IconTrendingDown, IconUsers, IconUserCheck } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-type OrderCustomer = {
-  id: number
-  name: string
-  totalOrders: number
-  totalSpent: number
-  lastOrderDate: string
-  deliveredOrders: number
-  paidOrders: number
-  cancelledOrders: number
+type User = {
+  id: string
+  user_id: string
+  first_name: string
+  last_name: string
+  email: string
+  verification_code: string
+  address?: {
+    line1?: string
+    line2?: string
+    postal_code?: string
+    phone?: number | string
+    city?: {
+      name?: string
+    }
+    province?: {
+      name?: string
+    }
+  }
 }
 
-export default function CustomersPage() {
-  const [customers, setCustomers] = useState<OrderCustomer[]>([])
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchUsers = async () => {
       try {
-        const response = await fetch('/api/order-customers')
+        const response = await fetch('/api/customers')
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         const data = await response.json()
-        setCustomers(data)
+        if (!Array.isArray(data)) {
+          throw new Error('Backend returned invalid data format - expected array')
+        }
+        setUsers(data)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch customers')
-        console.error('Error fetching customers:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch users')
+        console.error('Error fetching users:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchCustomers()
+    fetchUsers()
   }, [])
 
-  const totalCustomers = customers.length
-  const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0)
-  const totalOrders = customers.reduce((sum, c) => sum + c.totalOrders, 0)
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+  const totalUsers = users.length
+  const verifiedUsers = users.filter(u => u.verification_code === "verified").length
+  const unverifiedUsers = users.filter(u => u.verification_code !== "verified").length
+  const percentageVerified = totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0
+  const citiesCount = (() => {
+    const cities = users.filter(u => u.address?.city?.name).map(u => u.address!.city!.name)
+    return new Set(cities).size
+  })()
 
   if (loading) {
     return (
@@ -99,7 +116,7 @@ export default function CustomersPage() {
           <SiteHeader />
           <div className="flex flex-1 flex-col items-center justify-center">
             <div className="text-center">
-              <h2 className="text-lg font-semibold text-red-600">Error Loading Customers</h2>
+              <h2 className="text-lg font-semibold text-red-600">Error Loading Users</h2>
               <p className="text-muted-foreground">{error}</p>
             </div>
           </div>
@@ -123,9 +140,9 @@ export default function CustomersPage() {
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               {/* Page Header */}
               <div className="px-4 lg:px-6 space-y-1">
-                <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
+                <h1 className="text-2xl font-semibold tracking-tight">Registered Users</h1>
                 <p className="text-sm text-muted-foreground">
-                  Customers who have placed orders
+                  All registered users from the app
                 </p>
               </div>
 
@@ -133,110 +150,110 @@ export default function CustomersPage() {
               <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Total Customers</CardDescription>
+                    <CardDescription>Total Users</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {totalCustomers}
+                      {totalUsers}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
-                        <IconUsers className="size-4" />
+                        <IconTrendingUp />
                         All Time
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Unique customers <IconUsers className="size-4" />
+                      Registered users <IconUsers className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      From order history
+                      Since launch
                     </div>
                   </CardFooter>
                 </Card>
 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Total Revenue</CardDescription>
+                    <CardDescription>Verified Users</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      LKR {totalRevenue.toFixed(2)}
+                      {verifiedUsers}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
-                        <IconCash className="size-4" />
-                        All Time
+                        <IconTrendingUp />
+                        {percentageVerified}%
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Customer spending <IconTrendingUp className="size-4" />
+                      Account verified <IconUserCheck className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      Combined order total
+                      Email verified users
                     </div>
                   </CardFooter>
                 </Card>
 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Total Orders</CardDescription>
+                    <CardDescription>Cities Covered</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      {totalOrders}
+                      {citiesCount}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
-                        <IconShoppingCart className="size-4" />
-                        All Time
+                        <IconTrendingUp />
+                        Geographic Reach
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Orders placed <IconShoppingCart className="size-4" />
+                      Service locations <IconTrendingUp className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      Across all customers
+                      Unique cities
                     </div>
                   </CardFooter>
                 </Card>
 
                 <Card className="@container/card">
                   <CardHeader>
-                    <CardDescription>Avg Order Value</CardDescription>
+                    <CardDescription>Unverified Users</CardDescription>
                     <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      LKR {avgOrderValue.toFixed(2)}
+                      {unverifiedUsers}
                     </CardTitle>
                     <CardAction>
                       <Badge variant="outline">
-                        <IconTrendingUp className="size-4" />
-                        Average
+                        <IconTrendingDown />
+                        Need Verification
                       </Badge>
                     </CardAction>
                   </CardHeader>
                   <CardFooter className="flex-col items-start gap-1.5 text-sm">
                     <div className="line-clamp-1 flex gap-2 font-medium">
-                      Per order average <IconTrendingUp className="size-4" />
+                      Verification pending <IconTrendingDown className="size-4" />
                     </div>
                     <div className="text-muted-foreground">
-                      Revenue / orders
+                      Email not verified
                     </div>
                   </CardFooter>
                 </Card>
               </div>
 
-              {/* Customers Table */}
+              {/* Users Table */}
               <div className="px-4 lg:px-6">
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg font-medium">Customer List</CardTitle>
+                        <CardTitle className="text-lg font-medium">All Registered Users</CardTitle>
                         <p className="text-sm text-muted-foreground">
-                          Customers grouped by order history
+                          Users registered through the mobile app
                         </p>
                       </div>
                       <Badge variant="secondary" className="text-xs">
-                        {totalCustomers} customers
+                        {totalUsers} users
                       </Badge>
                     </div>
                   </CardHeader>
@@ -244,49 +261,33 @@ export default function CustomersPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead className="text-center">Orders</TableHead>
-                          <TableHead className="text-right">Total Spent</TableHead>
-                          <TableHead className="text-center">Delivered</TableHead>
-                          <TableHead className="text-center">Cancelled</TableHead>
-                          <TableHead>Last Order</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>City</TableHead>
+                          <TableHead>Province</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {customers.length === 0 ? (
+                        {users.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                              No customers found
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              No users found
                             </TableCell>
                           </TableRow>
                         ) : (
-                          customers.map((customer) => (
-                            <TableRow key={customer.id}>
-                              <TableCell className="text-muted-foreground">{customer.id}</TableCell>
-                              <TableCell className="font-medium">{customer.name}</TableCell>
-                              <TableCell className="text-center">
-                                <Badge variant="secondary">{customer.totalOrders}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                LKR {customer.totalSpent.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {customer.deliveredOrders > 0 ? (
-                                  <Badge variant="default">{customer.deliveredOrders}</Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">0</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {customer.cancelledOrders > 0 ? (
-                                  <Badge variant="destructive">{customer.cancelledOrders}</Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">0</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'N/A'}
+                          users.map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell className="font-medium">{`${user.first_name} ${user.last_name}`}</TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>{user.address?.phone || 'N/A'}</TableCell>
+                              <TableCell>{user.address?.city?.name || 'N/A'}</TableCell>
+                              <TableCell>{user.address?.province?.name || 'N/A'}</TableCell>
+                              <TableCell>
+                                <Badge variant={user.verification_code === "verified" ? "default" : "secondary"}>
+                                  {user.verification_code === "verified" ? "Verified" : "Unverified"}
+                                </Badge>
                               </TableCell>
                             </TableRow>
                           ))

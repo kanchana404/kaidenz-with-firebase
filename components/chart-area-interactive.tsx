@@ -176,7 +176,7 @@ export function ChartAreaInteractive({ orders }: ChartAreaInteractiveProps) {
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <div className="mb-4 grid grid-cols-2 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">LKR {totalRevenue.toFixed(2)}</div>
             <div className="text-sm text-muted-foreground">Total Revenue</div>
           </div>
           <div className="text-center">
