@@ -16,6 +16,8 @@ type User = {
   first_name: string
   last_name: string
   email: string
+  profileImageUrl: string
+  phone: string
   verification_code: string
   address?: {
     line1?: string
@@ -261,34 +263,43 @@ export default function UsersPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Name</TableHead>
+                          <TableHead>User</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>City</TableHead>
                           <TableHead>Province</TableHead>
-                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {users.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                               No users found
                             </TableCell>
                           </TableRow>
                         ) : (
                           users.map((user) => (
                             <TableRow key={user.id}>
-                              <TableCell className="font-medium">{`${user.first_name} ${user.last_name}`}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  {user.profileImageUrl ? (
+                                    <img
+                                      src={user.profileImageUrl}
+                                      alt={`${user.first_name} ${user.last_name}`}
+                                      className="h-9 w-9 rounded-full object-cover border border-border"
+                                    />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
+                                      {user.first_name?.charAt(0)?.toUpperCase() || '?'}
+                                    </div>
+                                  )}
+                                  <span className="font-medium">{`${user.first_name} ${user.last_name}`}</span>
+                                </div>
+                              </TableCell>
                               <TableCell>{user.email}</TableCell>
-                              <TableCell>{user.address?.phone || 'N/A'}</TableCell>
+                              <TableCell>{user.phone || user.address?.phone || 'N/A'}</TableCell>
                               <TableCell>{user.address?.city?.name || 'N/A'}</TableCell>
                               <TableCell>{user.address?.province?.name || 'N/A'}</TableCell>
-                              <TableCell>
-                                <Badge variant={user.verification_code === "verified" ? "default" : "secondary"}>
-                                  {user.verification_code === "verified" ? "Verified" : "Unverified"}
-                                </Badge>
-                              </TableCell>
                             </TableRow>
                           ))
                         )}

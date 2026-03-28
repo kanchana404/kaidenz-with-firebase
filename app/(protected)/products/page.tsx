@@ -12,9 +12,9 @@ import { Upload } from "lucide-react"
 import { toast } from "sonner"
 import { ProductsTable } from "@/components/products-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { X, Plus, Image as ImageIcon, Package, Palette } from "lucide-react"
+import { X, Plus, Image as ImageIcon, Package, Palette, Search, SlidersHorizontal } from "lucide-react"
+import Link from "next/link"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +54,8 @@ interface Product {
 
 export default function ProductsPage() {
   const [search, setSearch] = React.useState("")
+  const [selectedCategory, setSelectedCategory] = React.useState("all")
+  const [stockFilter, setStockFilter] = React.useState("all")
   const [products, setProducts] = React.useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([])
   const [categories, setCategories] = React.useState<{ id: string; label: string; imageUrl: string }[]>([])
@@ -74,7 +76,6 @@ export default function ProductsPage() {
   const [addingCategory, setAddingCategory] = React.useState(false)
   const [addingSize, setAddingSize] = React.useState(false)
   const [addingColor, setAddingColor] = React.useState(false)
-  const [uploadingImage, setUploadingImage] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState("products")
   const [editingCategory, setEditingCategory] = React.useState<{ id: string; name: string } | null>(null)
   const [editingSize, setEditingSize] = React.useState<{ id: string; name: string } | null>(null)
@@ -85,29 +86,6 @@ export default function ProductsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [deleteTarget, setDeleteTarget] = React.useState<{ type: 'category' | 'size' | 'color'; id: string; name: string } | null>(null)
   
-  const [newProduct, setNewProduct] = React.useState<{
-    name: string;
-    description: string;
-    basePrice: string;
-    imageUrls: string[];
-    categoryId: string;
-    sizes: Array<{
-      sizeId: string;
-      stockQuantity: string;
-    }>;
-    colors: Array<{
-      colorId: string;
-    }>;
-  }>({
-    name: "",
-    description: "",
-    basePrice: "",
-    imageUrls: [],
-    categoryId: "",
-    sizes: [],
-    colors: [],
-  })
-
   const fetchColors = React.useCallback(async () => {
     try {
       const response = await fetch("/api/colors")
@@ -676,215 +654,58 @@ export default function ProductsPage() {
 
 
 
+  const applyFilters = React.useCallback(
+    (term: string, categoryId: string, stock: string) => {
+      let filtered = products
+
+      if (term.trim()) {
+        const lower = term.toLowerCase()
+        filtered = filtered.filter(
+          (p) =>
+            p.name.toLowerCase().includes(lower) ||
+            p.description.toLowerCase().includes(lower) ||
+            p.categoryName.toLowerCase().includes(lower)
+        )
+      }
+
+      if (categoryId !== "all") {
+        filtered = filtered.filter((p) => p.categoryId.toString() === categoryId)
+      }
+
+      if (stock === "in") {
+        filtered = filtered.filter((p) => p.totalStock > 10)
+      } else if (stock === "low") {
+        filtered = filtered.filter((p) => p.totalStock > 0 && p.totalStock <= 10)
+      } else if (stock === "out") {
+        filtered = filtered.filter((p) => p.totalStock === 0)
+      }
+
+      setFilteredProducts(filtered)
+    },
+    [products]
+  )
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const searchTerm = e.target.value
-    setSearch(searchTerm)
-    setFilteredProducts(
-      products.filter((item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    )
+    const term = e.target.value
+    setSearch(term)
+    applyFilters(term, selectedCategory, stockFilter)
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setNewProduct({ ...newProduct, [e.target.name]: e.target.value })
+  const handleCategoryFilter = (value: string) => {
+    setSelectedCategory(value)
+    applyFilters(search, value, stockFilter)
   }
 
-  const handleSelectChange = (name: string, value: string) => {
-    setNewProduct({ ...newProduct, [name]: value })
+  const handleStockFilter = (value: string) => {
+    setStockFilter(value)
+    applyFilters(search, selectedCategory, value)
   }
 
-  const handleSizeChange = (index: number, field: string, value: string) => {
-    const updatedSizes = [...newProduct.sizes]
-    updatedSizes[index] = { ...updatedSizes[index], [field]: value }
-    setNewProduct({ ...newProduct, sizes: updatedSizes })
-  }
-
-  const addSize = () => {
-    setNewProduct({
-      ...newProduct,
-      sizes: [...newProduct.sizes, { sizeId: "", stockQuantity: "" }]
-    })
-  }
-
-  const removeSize = (index: number) => {
-    const updatedSizes = newProduct.sizes.filter((_, i) => i !== index)
-    setNewProduct({ ...newProduct, sizes: updatedSizes })
-  }
-
-  const handleColorSelect = (colorId: string) => {
-    const color = colors.find(c => c.id === colorId)
-    if (!color) return
-    
-    // Check if color is already selected
-    const isAlreadySelected = newProduct.colors.some(c => c.colorId === colorId)
-    if (isAlreadySelected) return
-    
-    setNewProduct({
-      ...newProduct,
-      colors: [...newProduct.colors, { colorId }]
-    })
-  }
-
-  const removeSelectedColor = (colorId: string) => {
-    setNewProduct({
-      ...newProduct,
-      colors: newProduct.colors.filter(c => c.colorId !== colorId)
-    })
-  }
-
-  const getSelectedColorNames = () => {
-    return newProduct.colors.map(color => {
-      const colorData = colors.find(c => c.id === color.colorId)
-      return colorData?.label || 'Unknown'
-    })
-  }
-
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Comprehensive validation
-    const validationErrors = []
-    
-    if (!newProduct.name.trim()) {
-      validationErrors.push("Product name is required")
-    }
-    
-    if (!newProduct.description.trim()) {
-      validationErrors.push("Product description is required")
-    }
-    
-    if (!newProduct.basePrice || parseFloat(newProduct.basePrice) <= 0) {
-      validationErrors.push("Valid base price is required")
-    }
-    
-    if (!newProduct.categoryId) {
-      validationErrors.push("Product category is required")
-    }
-    
-    if (newProduct.sizes.length === 0) {
-      validationErrors.push("At least one size is required")
-    } else {
-      // Validate each size
-      newProduct.sizes.forEach((size, index) => {
-        if (!size.sizeId) {
-          validationErrors.push(`Size ${index + 1}: Size selection is required`)
-        }
-        if (!size.stockQuantity || parseInt(size.stockQuantity) < 0) {
-          validationErrors.push(`Size ${index + 1}: Valid stock quantity is required`)
-        }
-      })
-    }
-    
-    if (newProduct.imageUrls.length === 0) {
-      validationErrors.push("At least one product image is required")
-    }
-    
-    if (validationErrors.length > 0) {
-      toast("Validation Error", {
-        description: (
-          <div className="space-y-1">
-            <div className="font-medium">Please fix the following issues:</div>
-            <ul className="text-sm space-y-1">
-              {validationErrors.map((error, index) => (
-                <li key={index} className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  {error}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-        duration: 5000,
-      })
-      return
-    }
-
-    try {
-      const requestBody = {
-        name: newProduct.name.trim(),
-        description: newProduct.description.trim(),
-        basePrice: parseFloat(newProduct.basePrice),
-        imageUrls: newProduct.imageUrls,
-        category: newProduct.categoryId || null,
-        sizes: newProduct.sizes.map(size => ({
-          sizeId: size.sizeId,
-          stockQuantity: parseInt(size.stockQuantity),
-          price: parseFloat(newProduct.basePrice),
-        })),
-        colors: newProduct.colors.map(color => ({
-          colorId: color.colorId,
-        })),
-      }
-      
-      console.log("Sending product data:", requestBody)
-      
-      const response = await fetch("/api/product", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      })
-      
-      const result = await response.json()
-      
-      if (result.success) {
-        toast("Product Added Successfully", {
-          description: `${newProduct.name} has been added to your inventory`,
-          action: {
-            label: "View Product",
-            onClick: () => {
-              document.querySelector('.products-table')?.scrollIntoView({ behavior: 'smooth' })
-            },
-          },
-        })
-        setNewProduct({
-          name: "",
-          description: "",
-          basePrice: "",
-          imageUrls: [],
-          categoryId: "",
-          sizes: [],
-          colors: [],
-        })
-        fetchProducts()
-      } else {
-        // Handle specific backend errors
-        let errorMessage = result.error || "An error occurred while adding the product"
-        
-        // Parse common backend errors
-        if (errorMessage.includes("JsonNull")) {
-          errorMessage = "Missing required data. Please check all fields are filled correctly."
-        } else if (errorMessage.includes("category")) {
-          errorMessage = "Category is required. Please select a valid category."
-        } else if (errorMessage.includes("size")) {
-          errorMessage = "Size configuration is invalid. Please check size, stock, and price values."
-        } else if (errorMessage.includes("color")) {
-          errorMessage = "Color selection is invalid. Please check color values."
-        } else if (errorMessage.includes("image")) {
-          errorMessage = "Image upload failed. Please try uploading images again."
-        } else if (errorMessage.includes("500")) {
-          errorMessage = "Server error. Please try again or contact support if the issue persists."
-        }
-        
-        toast("Failed to Add Product", {
-          description: errorMessage,
-          action: {
-            label: "Retry",
-            onClick: () => handleAddProduct(e),
-          },
-        })
-      }
-    } catch (error) {
-      console.error("Add product error:", error)
-      toast("Add Product Failed", {
-        description: "Network error occurred. Please check your connection and try again.",
-        action: {
-          label: "Retry",
-          onClick: () => handleAddProduct(e),
-        },
-      })
-    }
+  const handleClearSearch = () => {
+    setSearch("")
+    setSelectedCategory("all")
+    setStockFilter("all")
+    setFilteredProducts(products)
   }
 
   return (
@@ -900,16 +721,84 @@ export default function ProductsPage() {
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <h1 className="text-2xl font-bold px-4 lg:px-6">Products</h1>
+              <div className="flex items-center justify-between px-4 lg:px-6">
+                <h1 className="text-2xl font-bold">Products</h1>
+                <Link href="/products/add">
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Product
+                  </Button>
+                </Link>
+              </div>
 
-              {/* Search Bar */}
-              <div className="px-4 lg:px-6">
-                <Input
-                  placeholder="Search products..."
-                  value={search}
-                  onChange={handleSearch}
-                  className="max-w-xs"
-                />
+              {/* Search & Filter Bar */}
+              <div className="px-4 lg:px-6 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search Input */}
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search by name, description or category..."
+                      value={search}
+                      onChange={handleSearch}
+                      className="pl-9 pr-9"
+                    />
+                    {search && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Filter */}
+                  <Select value={selectedCategory} onValueChange={handleCategoryFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Stock Filter */}
+                  <Select value={stockFilter} onValueChange={handleStockFilter}>
+                    <SelectTrigger className="w-full sm:w-[160px]">
+                      <SlidersHorizontal className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder="Stock Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stock</SelectItem>
+                      <SelectItem value="in">In Stock (&gt;10)</SelectItem>
+                      <SelectItem value="low">Low Stock (1–10)</SelectItem>
+                      <SelectItem value="out">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Clear All Filters */}
+                  {(search || selectedCategory !== "all" || stockFilter !== "all") && (
+                    <Button variant="ghost" size="sm" onClick={handleClearSearch} className="shrink-0">
+                      <X className="h-4 w-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                {/* Result count */}
+                {(search || selectedCategory !== "all" || stockFilter !== "all") && (
+                  <p className="text-sm text-muted-foreground">
+                    {filteredProducts.length === 0
+                      ? "No products match your filters"
+                      : `${filteredProducts.length} of ${products.length} product${products.length !== 1 ? "s" : ""} found`}
+                  </p>
+                )}
               </div>
 
               {/* Tabs for different sections */}
@@ -956,353 +845,6 @@ export default function ProductsPage() {
                   
                   {/* Products Tab */}
                   <TabsContent value="products" className="space-y-6 mt-6">
-                    {/* Add Product Form */}
-                    <Card className="border-0 shadow-sm bg-gradient-to-br from-background to-muted/20">
-                      <CardHeader className="pb-6">
-                        <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                          <Package className="w-5 h-5 text-primary" />
-                          Add New Product
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <form onSubmit={handleAddProduct} className="space-y-6">
-                          {/* Basic Information */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Basic Information</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="name" className="text-sm font-medium">Product Name</Label>
-                                <Input
-                                  id="name"
-                                  name="name"
-                                  placeholder="Enter product name"
-                                  value={newProduct.name}
-                                  onChange={handleInputChange}
-                                  className="h-10 border-border/50 focus:border-primary/50"
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="basePrice" className="text-sm font-medium">Base Price (LKR)</Label>
-                                <Input
-                                  id="basePrice"
-                                  name="basePrice"
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  value={newProduct.basePrice}
-                                  onChange={handleInputChange}
-                                  className="h-10 border-border/50 focus:border-primary/50"
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="category" className="text-sm font-medium">Category</Label>
-                                <Select value={newProduct.categoryId} onValueChange={(value) => handleSelectChange("categoryId", value)}>
-                                  <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
-                                    <SelectValue placeholder="Select category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {categories.map((cat) => (
-                                      <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                              <Input
-                                id="description"
-                                name="description"
-                                placeholder="Enter product description"
-                                value={newProduct.description}
-                                onChange={handleInputChange}
-                                className="border-border/50 focus:border-primary/50"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          {/* Product Images */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                              <ImageIcon className="w-4 h-4" />
-                              Product Images
-                            </h3>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Upload Images</Label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  multiple
-                                  disabled={uploadingImage}
-                                  onChange={async (e) => {
-                                    const files = e.target.files
-                                    if (!files || files.length === 0) return
-
-                                    setUploadingImage(true)
-                                    try {
-                                      const uploadedUrls: string[] = []
-                                      for (const file of Array.from(files)) {
-                                        const formData = new FormData()
-                                        formData.append("file", file)
-                                        const res = await fetch("/api/upload", {
-                                          method: "POST",
-                                          body: formData,
-                                        })
-                                        const result = await res.json()
-                                        if (result.success && result.url) {
-                                          uploadedUrls.push(result.url)
-                                        }
-                                      }
-                                      if (uploadedUrls.length > 0) {
-                                        setNewProduct((prev) => ({
-                                          ...prev,
-                                          imageUrls: [...prev.imageUrls, ...uploadedUrls]
-                                        }))
-                                        toast("Image Uploaded Successfully", {
-                                          description: `${uploadedUrls.length} image${uploadedUrls.length > 1 ? 's' : ''} added to product`,
-                                        })
-                                      }
-                                    } catch (error) {
-                                      toast("Upload Error", {
-                                        description: "Failed to upload image. Please try again.",
-                                      })
-                                    } finally {
-                                      setUploadingImage(false)
-                                      e.target.value = ""
-                                    }
-                                  }}
-                                  className="hidden"
-                                  id="product-image-upload"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  disabled={uploadingImage}
-                                  onClick={() => document.getElementById("product-image-upload")?.click()}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Upload className="w-4 h-4" />
-                                  {uploadingImage ? "Uploading..." : "Upload Images"}
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            {newProduct.imageUrls.length > 0 && (
-                              <div className="mt-4">
-                                <Label className="text-sm font-medium">Image Preview</Label>
-                                <div className="mt-2 flex flex-wrap gap-3">
-                                  {newProduct.imageUrls.map((url, idx) => (
-                                    <div key={idx} className="relative group">
-                                      <div className="w-24 h-24 border-2 border-border/50 rounded-lg overflow-hidden bg-muted/30">
-                                        <img
-                                          src={url}
-                                          alt={`Product preview ${idx + 1}`}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setNewProduct(prev => ({
-                                            ...prev,
-                                            imageUrls: prev.imageUrls.filter((_, i) => i !== idx)
-                                          }))
-                                        }}
-                                        className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                                        aria-label="Remove image"
-                                        title="Remove image"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Product Colors - Modern Design */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                              <Palette className="w-4 h-4" />
-                              Product Colors
-                            </h3>
-                            <div className="space-y-3">
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Select Colors</Label>
-                                <Select onValueChange={handleColorSelect}>
-                                  <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
-                                    <SelectValue placeholder="Choose colors to add" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {colors
-                                      .filter(color => !newProduct.colors.some(c => c.colorId === color.id))
-                                      .map((color) => (
-                                        <SelectItem key={color.id} value={color.id}>
-                                          {color.label}
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              {/* Selected Colors as Badges */}
-                              {newProduct.colors.length > 0 && (
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium">Selected Colors</Label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {getSelectedColorNames().map((colorName, index) => (
-                                      <Badge 
-                                        key={index} 
-                                        variant="secondary" 
-                                        className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors"
-                                      >
-                                        <span className="text-sm">{colorName}</span>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeSelectedColor(newProduct.colors[index].colorId)}
-                                          className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                                          aria-label={`Remove ${colorName} color`}
-                                          title={`Remove ${colorName} color`}
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </button>
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {newProduct.colors.length === 0 && (
-                                <div className="text-center py-6 text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg bg-muted/20">
-                                  <Palette className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                                  No colors selected. Choose colors from the dropdown above.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Product Sizes - Badge Style */}
-                          <div className="space-y-4">
-                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                              <Package className="w-4 h-4" />
-                              Product Sizes & Stock
-                            </h3>
-                            <div className="space-y-3">
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Select Size</Label>
-                                <div className="flex gap-2">
-                                  <Select onValueChange={(value) => {
-                                    const size = sizes.find(s => s.id === value)
-                                    if (!size) return
-                                    
-                                    // Check if size is already selected
-                                    const isAlreadySelected = newProduct.sizes.some(s => s.sizeId === value)
-                                    if (isAlreadySelected) return
-                                    
-                                    setNewProduct({
-                                      ...newProduct,
-                                      sizes: [...newProduct.sizes, { sizeId: value, stockQuantity: "" }]
-                                    })
-                                  }}>
-                                    <SelectTrigger className="h-10 border-border/50 focus:border-primary/50">
-                                      <SelectValue placeholder="Choose size to add" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {sizes
-                                        .filter(size => !newProduct.sizes.some(s => s.sizeId === size.id))
-                                        .map((size) => (
-                                          <SelectItem key={size.id} value={size.id}>
-                                            {size.label}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={addSize}
-                                    className="h-10 px-3 border-border/50 hover:border-primary/50"
-                                  >
-                                    <Plus className="w-3 h-3 mr-1" />
-                                    Add Size
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {/* Selected Sizes as Badges */}
-                              {newProduct.sizes.length > 0 && (
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium">Size Configuration</Label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {newProduct.sizes.map((size, index) => {
-                                      const sizeData = sizes.find(s => s.id === size.sizeId)
-                                      return (
-                                        <div key={index} className="relative group">
-                                          <Badge 
-                                            variant="secondary" 
-                                            className="flex items-center gap-4 px-4 py-2 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors min-w-[200px]"
-                                          >
-                                            {/* Size Name - Left Aligned */}
-                                            <span className="text-sm font-medium flex-1 text-left">
-                                              {sizeData?.label || 'Unknown'}
-                                            </span>
-                                            
-                                            {/* Stock Quantity */}
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-xs text-muted-foreground">Qty:</span>
-                                              <input
-                                                type="number"
-                                                placeholder="0"
-                                                value={size.stockQuantity}
-                                                onChange={(e) => handleSizeChange(index, "stockQuantity", e.target.value)}
-                                                className="w-12 h-6 text-xs text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1"
-                                              />
-                                            </div>
-                                            
-                                            {/* Remove Button */}
-                                            <button
-                                              type="button"
-                                              onClick={() => removeSize(index)}
-                                              className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors opacity-0 group-hover:opacity-100"
-                                              aria-label={`Remove ${sizeData?.label || 'size'}`}
-                                              title={`Remove ${sizeData?.label || 'size'}`}
-                                            >
-                                              <X className="w-3 h-3" />
-                                            </button>
-                                          </Badge>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {newProduct.sizes.length === 0 && (
-                                <div className="text-center py-8 text-sm text-muted-foreground border-2 border-dashed border-border/50 rounded-lg bg-muted/20">
-                                  <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                                  No sizes added. Choose sizes from the dropdown above or click &quot;Add Size&quot;.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="pt-4 border-t border-border/50">
-                            <Button type="submit" className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Product
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-
                     {/* Products Table */}
                     {loading && (
                       <div className="space-y-4">

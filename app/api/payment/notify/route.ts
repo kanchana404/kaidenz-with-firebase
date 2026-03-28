@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminMessaging } from "@/lib/firebase-admin";
 import crypto from "crypto";
 
 const MERCHANT_ID = "1224479";
@@ -113,6 +113,44 @@ export async function POST(req: NextRequest) {
         paymentUpdatedAt: Date.now(),
       });
       console.log(`[PayHere Notify] Order ${orderId} updated to status: ${orderStatus}`);
+
+      // Send push notification for successful payment
+      if (orderStatus === "PAID") {
+        try {
+          const orderData = (await orderDocRef.get()).data();
+          if (orderData?.userId) {
+            const userDoc = await adminDb.collection("users").doc(orderData.userId).get();
+            const fcmToken = userDoc.data()?.fcmToken;
+            if (fcmToken) {
+              const amount = parseFloat(payhereAmount) || orderData.total || 0;
+              await adminMessaging.send({
+                token: fcmToken,
+                data: {
+                  title: "Order Confirmed!",
+                  body: `Your order #${orderId} for LKR ${amount.toLocaleString()} has been placed successfully.`,
+                  orderId: orderId,
+                  status: "PAID",
+                  type: "ORDER_PLACED",
+                },
+                android: {
+                  priority: "high",
+                  notification: {
+                    title: "Order Confirmed!",
+                    body: `Your order #${orderId} for LKR ${amount.toLocaleString()} has been placed successfully.`,
+                    channelId: "kaidenz_orders",
+                    icon: "ic_notification",
+                    color: "#F5A623",
+                    sound: "default",
+                  },
+                },
+              });
+              console.log(`[PayHere Notify] Payment confirmation notification sent to user ${orderData.userId}`);
+            }
+          }
+        } catch (notifErr) {
+          console.error("[PayHere Notify] Failed to send notification:", notifErr);
+        }
+      }
     } else {
       // Order not found - create a payment record for reconciliation
       console.warn(`[PayHere Notify] Order ${orderId} not found in Firestore, saving payment record`);

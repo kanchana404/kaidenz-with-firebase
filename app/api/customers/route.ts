@@ -16,6 +16,8 @@ export async function GET() {
         first_name: data.firstName || "",
         last_name: data.lastName || "",
         email: data.email || "",
+        profileImageUrl: data.profileImageUrl || "",
+        phone: data.phone || data.address?.phone || "",
         verification_code: data.verified ? "verified" : "unverified",
         address: data.address
           ? {
