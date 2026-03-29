@@ -1,17 +1,16 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
-import path from "path";
 
 if (!getApps().length) {
-  const serviceAccountPath = path.join(
-    process.cwd(),
-    "service-account.json"
-  );
-
   initializeApp({
-    credential: cert(serviceAccountPath),
-    projectId: "kaidenz",
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // Vercel stores env vars as single-line strings; newlines are escaped
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
+    projectId: process.env.FIREBASE_PROJECT_ID,
   });
 }
 
